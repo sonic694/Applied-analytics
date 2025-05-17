@@ -1,0 +1,164 @@
+---
+title: "2.4.1 Normal distribution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+```{r echo=FALSE}
+
+## We will create a function for generating density plots
+
+## There is a lot happening with the code below, but don't worry, 
+## you will NOT be asked to replicate this user-generated function 
+## in any assessments, this is simply just set up to generate plots 
+## specific to this script.
+
+plot_normal <- function(x, mu, sd, a="", b="", area = "less"){
+  # Define area to highlight
+  
+  if (area == "less") {
+    auc <- c(0,dnorm(seq(mu-sd*4,x,sd*0.01), mean = mu, sd = sd),0)
+    x_values <- c(mu-sd*4,seq(mu-sd*4,x,sd*0.01),x)
+  } else {
+    if (area == "greater") {
+      auc <- c(0,dnorm(seq(x,mu+sd*4,sd*0.01), mean = mu, sd = sd),0)
+      x_values <- c(x,seq(x,mu+sd*4,sd*0.01),mu+sd*4)
+    } else {
+      if (area == "between") {
+        auc <- c(0,dnorm(seq(a,b,sd*0.01), mean = mu, sd = sd),0)
+        x_values <- c(a,seq(a,b,sd*0.01),b)
+      }
+    }
+  }
+  
+  # Create probability statement
+  
+  if (area == "less") {
+    prob_statement <- paste("Pr(X < ",x,") = ", round(pnorm(x,mu,sd),3), sep = "")
+  } else {
+    if (area == "greater") {
+      prob_statement <- paste("Pr(X > ",x,") = ", 
+                              round(pnorm(x,mu,sd,lower.tail = FALSE),3), sep = "")
+    } else {
+      if (area == "between") {
+        prob_statement <- paste("Pr(",a," < x < ",b,") = ", 
+                                round(pnorm(b,mu,sd) - pnorm(a,mu,sd),3), sep = "")}
+      else {
+        prob_statement <- ""
+      }
+    }
+  }
+  
+  
+  # Plot density
+  curve(expr = dnorm(x,mu,sd), 
+        xlim = c(mu-sd*4,mu+sd*4), 
+        main = paste("Normal Distribution, Mean = ",mu,", Sigma = ",sd),
+        ylab = "Density")
+  if (area != "") {
+    polygon(x = x_values, y = auc, col = "tomato")
+    text(x = mu-sd*4, y = dnorm(mu-sd/4,mu,sd), labels = prob_statement, pos = 4)
+  }
+  
+}
+```
+
+### Standard normal, Z
+
+We call $Z$ the **standard normal**. Here is what the standard normal density looks like: 
+
+```{r fig.width = 7, fig.height = 4}
+data = data.frame(x = c(-4, 4))
+
+ggplot(data = data, aes(x)) + 
+  stat_function(fun = dnorm, geom = "area", fill = "steelblue", alpha = 0.5, 
+                n = 101, args = list(mean = 0, sd = 1)) +  
+  xlab("") + ylab("") 
+```
+
+### Standard normal, Z versus normal variable with mean = 1 and sd = 1 
+
+Take $Z$ as our starting point or frame of reference.  If we increase $\mu$ from 0 to 1, while keeping $\sigma = 1$, then the shape of the blue curve doesn't change, but the whole curve shifts one unit to the right, as shown below. 
+
+```{r fig.width = 7, fig.height = 4}
+ggplot(data = data, aes(x)) + 
+  stat_function(fun = dnorm, geom = "area", fill = "darkgrey", alpha = 0.5, 
+                n = 101, args = list(mean = 0, sd = 1)) +  
+  stat_function(fun = dnorm, geom = "area", fill = "steelblue", alpha = 0.5, 
+                n = 101, args = list(mean = 1, sd = 1)) +  
+  xlab("") + ylab("") 
+
+```
+
+### Standard normal, Z versus normal variable with mean = 0 and sd = 1.5 
+
+Once again, take $Z$ as our starting point or frame of reference.  If we increase $\sigma$ from 1 to 1.5, while keeping $\mu = 0$, then the blue curve remains centred at zero, but its spread has increased, as shown below. 
+
+```{r fig.width = 7, fig.height = 4}
+ggplot(data = data, aes(x)) + 
+  stat_function(fun = dnorm, geom = "area", fill = "darkgrey", alpha = 0.5, 
+                n = 101, args = list(mean = 0, sd = 1)) +  
+  stat_function(fun = dnorm, geom = "area", fill = "steelblue", alpha = 0.5, 
+                n = 101, args = list(mean = 0, sd = 1.5)) +  
+  xlab("") + ylab("") 
+```
+
+What is also clear from looking at all of these curves above is that a normal distribution is always symmetric and centred about its mean.  
+
+\newpage
+## The following example illustrates how to solve probability questions using pnorm() and qnorm(). 
+
+A company that produces battery operated vacuum cleaners estimates that demand for its leading model in the following year will be normally distributed with mean = 8 million units and sd = 2 million units. Run the code below to answer the following:   
+
+a) The probability that demand will fall below 5 million units. 
+```{r fig.width = 7, fig.height = 4}
+# (a) P(X <= 5)
+mean <- 8  
+sd <- 2 
+
+x_a <- 5 
+ans.a <- pnorm(x_a, mean, sd, lower.tail = TRUE) 
+print(round(ans.a,3))
+
+# Let's visualise this using a density plot 
+plot_normal(5,8,2)
+```
+
+\newpage
+b) The probability that demand will exceed 12 million units. 
+```{r fig.width = 7, fig.height = 4}
+# (b) P(X > 12) 
+
+x_b <- 12 
+ans.b <- pnorm(x_b, mean, sd, lower.tail = FALSE) 
+print(round(ans.b,3))
+ 
+# Let's visualise this using a density plot 
+plot_normal(12,8,2,area='greater')
+```
+
+\newpage
+c) The 95th percentile of the demand for the leading model. 
+```{r fig.width = 7, fig.height = 4}
+# (c) Find x such that  P(X <= x) = 0.95 
+
+proportion <- 0.95  
+
+ans.c <- qnorm(proportion, mean, sd, lower.tail = TRUE) 
+print(round(ans.c,3))
+
+# We can see what this looks through a density plot 
+plot_normal(round(ans.c,3),8,2)
+```
+

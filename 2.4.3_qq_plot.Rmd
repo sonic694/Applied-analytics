@@ -1,0 +1,52 @@
+---
+title: "2.4.3 Q-Q plot"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot() function
+```
+
+
+# Normal distribution with mean = 250 and sd = 20 
+
+```{r}
+population_mean <- 250 
+population_sd <- 20 
+```
+
+## Generate 5000 random observations on X as defined above 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+nbr_x <- 5000 # number of simulated values 
+r_data <- rnorm(nbr_x, population_mean, population_sd) 
+head(r_data, 10) # look at first 10 sampled values
+```
+
+## Add a graph of the distribution 
+
+The Q-Q plot shows that the points lie close to a straight line, confirming normality. 
+
+```{r fig.width = 7, fig.height = 4}
+qqnorm(r_data, main = 'Q-Q Plot for temperature data') 
+qqline(r_data) 
+```
+
+```{r fig.width = 7, fig.height = 4}
+# Can also generate the Q-Q plot using the ggplot2 package.
+
+ggplot(data.frame(r_data), aes(sample = r_data)) + stat_qq() + stat_qq_line() +
+  labs(x  = 'Theoretical quantiles', y = 'Sample quantiles', 
+       title = 'Q-Q Plot for temperature data')
+```

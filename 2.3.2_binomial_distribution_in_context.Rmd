@@ -1,0 +1,116 @@
+---
+title: "2.3.2 Binomial distribution in context (Test Yourself solution)"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+### Data from the given table 
+
+```{r}
+s_die <- 1582 # number of smokers who die within 5 years 
+s_live <- 27116 # number of smokers who are alive at the end of the period 
+s <- s_die + s_live # number of smokers 
+ns_die <- 166 # number of non-smokers who die within 5 years 
+ns_live <- 5630 # number of non-smokers who are alive at the end of the period 
+ns <- ns_die + ns_live # number of non-smokers 
+```
+
+### Question 1
+
+What is the probability that a randomly selected British physician who smokes and is currently disease free will die within five years? 
+
+```{r}
+prob_s_dies <- s_die/s # estimate based on proportion of smokers who die 
+ans_1 <- prob_s_dies 
+round(ans_1, digits = 3) 
+```
+
+### Question 2
+
+Suppose that you select a random sample of 50 British physicians who smoke and are currently disease free. 
+
+(a) On average, how many would you expect to still be alive after five years? 
+
+```{r}
+# mean = np  
+
+n <- 50 # size of random sample 
+p <- 1 - prob_s_dies # prob. randomly chosen smoker still alive after 5 years 
+ans_2a <- n*p 
+round(ans_2a, digits = 3)  
+```
+
+(b) What is the 50th percentile of the number that will still be alive after five years?
+
+```{r}
+proportion <- 0.5  
+ans_2b <- qbinom(proportion, n, p, lower.tail = TRUE) 
+round(ans_2b, digits = 3) 
+```
+
+
+(c) What is the probability that all 50 will still be alive after five years? 
+
+```{r}
+x <- 50 # number alive after 5 years 
+ans_2c <- dbinom(x, n, p) 
+round(ans_2c, digits = 3) 
+```
+
+
+(d) What is the probability that at least 45 will still be alive after five years? 
+
+```{r}
+x <- 44 # more than x alive 
+ans_2d <- pbinom(x, n, p, lower.tail = FALSE) 
+round(ans_2d, digits = 3) 
+```
+
+
+### Question 3
+
+Now suppose you select a random sample of 100 British physicians who are currently disease free. Assume that the incidence of smoking among the population of British physicians is now 10%. On average, how many would you expect to die within five years? 
+
+
+```{r}
+n <- 100 # size of random sample 
+prob_s <- 0.1 # incidence of smoking in pop'n of British physicians 
+nbr_s <- seq(0,n) # create seqeuence vector 
+nbr_ns <- 100 - nbr_s
+prob_comb <- dbinom(nbr_s, n, prob_s) 
+
+# Expected number of smokers that die 
+exp_nbr_s_die <- nbr_s*prob_s_dies 
+
+# prob. non-smoker dies within the period 
+prob_ns_dies <- ns_die/ns 
+
+# Expected number of non-smokers that die  
+exp_nbr_ns_die <- nbr_ns*prob_ns_dies 
+
+# total expected deaths per combination 
+exp_deaths_per_comb <- exp_nbr_s_die + exp_nbr_ns_die 
+ans_3 <- crossprod(prob_comb,exp_deaths_per_comb) # equivalent to sumprod in Excel  
+
+round(ans_3, digits = 3) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

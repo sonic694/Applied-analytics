@@ -1,0 +1,102 @@
+---
+title: "2.3.3 Binomial Data"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(plyr) # for count() function
+library(ggplot2) # for ggplot() function
+```
+
+
+## Binomial distribution with n = 10 and p = 0.5 
+
+```{r}
+n <- 10 
+p <- 0.5 
+
+# Calculate the population mean 
+population_mean <- n*p 
+cat(paste0('Population Mean: ',population_mean))
+```
+
+
+```{r}
+# Calculate the population variance 
+population_variance <- n*p*(1-p) 
+cat(paste0('Population Variance: ',population_variance))
+```
+
+
+```{r}
+# Calculate the population standard deviation 
+population_standard_deviation <- sqrt(population_variance) 
+cat(paste0('Population Standard Deviation: ',population_standard_deviation))
+```
+
+## Generate 5000 random observations on X as defined above 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+nbr_x <- 5000 # number of simulated values 
+r_data <- rbinom(nbr_x, n, p)
+head(r_data, 10) # look at first 10 sampled values
+```
+
+## Generate frequency table and calculate proportion 
+
+```{r}
+distn <- count(r_data,vars = 'r_data')
+distn$propn <- distn$freq/nbr_x
+distn
+```
+
+## Add a graph of the distribution 
+
+Note that the plot displays approximate symmetry as anticipated. A plot that exactly matched the theoretical distribution would look suspicious! 
+
+```{r fig.height = 4, fig.width = 7}
+ggplot(data=distn, aes(x=as.factor(r_data), y=propn)) +  
+  geom_bar(stat="identity", width=0.5, fill="steelblue") +  
+  ylim(0,max(distn$propn)+0.02) + 
+  geom_text(aes(label = round(distn$propn,3), y = distn$propn), vjust = -1) +
+  labs(x='x', y='Proportion',title='Empirical binomial distribution')
+```
+
+## Calculate summary statistics of sample
+
+* The sample mean is close to the population mean.
+* The sample variance is close to the population variance.
+* The sample standard deviation is close to the population standard deviation.
+
+```{r}
+# Calculate the sample mean  
+sample_mean <- mean(r_data) 
+cat(paste0('Sample Mean: ',round(sample_mean,3)))
+```
+
+```{r}
+# Calculate the sample variance  
+sample_var <- var(r_data) 
+cat(paste0('Sample Variance: ',round(sample_var, 3)))
+```
+
+```{r}
+# Calculate the sample standard deviation (s)
+s <- sqrt(sample_var) 
+cat(paste0('Sample Standard Deviation: ',round(s, 3)))
+
+```
+
+
+

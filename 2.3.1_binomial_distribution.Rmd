@@ -1,0 +1,192 @@
+---
+title: "2.3.1 Binomial distribution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+
+## Symmetric binomial distribution 
+An important feature of the binomial distribution is its shape which varies between being symmetric and skewed, depending on the value of p. For example, when  p = 0.5 there are equal chances of a success or failure on a single trial, and so it the distribution is symmetric, as shown below when n = 10. 
+
+### We can use the dbinom() function to calculate the probabilities according to the binomial probability mass function.
+
+```{r}
+n <- 10 # number of trials
+p <- 0.5 # probability of success
+
+# calculate probabilities for all possible outcomes
+n_range <- 0:n
+PMF <- dbinom(x = n_range, size = n, prob = p)
+PMF
+```
+
+### Let's visualise this distribution using the ggplot2 packge.
+
+```{r fig.width = 7, fig.height = 3.5}
+# first create a dataframe to pass the ggplot() function
+PMF_df <- data.frame(n_range,PMF)
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = PMF)) + 
+  geom_bar(stat="identity", width=0.5, fill="steelblue") + ylim(0,max(PMF)+0.02) + 
+  geom_text(aes(label = round(PMF,3), y = PMF), vjust = -1.25) +
+  labs(title = "Probability Mass",
+       x = "Successes (x)",
+       y = "Probability Mass Function") 
+```
+
+## Binomial distribution skewed to the left 
+
+When p increases towards 1, the distribution becomes more and more skewed to the left, meaning that most of the probability mass is distributed over larger x values, with a longer tail to the left. For example, consider p = 0.75 when n = 10. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# change probability of success to 0.75
+p <- 0.75 
+
+# calculate probabilities for all possible outcomes
+PMF2 <- dbinom(x = n_range, size = n, prob = p)
+
+PMF_df2 <- data.frame(n_range,PMF2)
+
+ggplot(PMF_df2, aes(x = as.factor(n_range), y = PMF2)) + 
+  geom_bar(stat="identity", width=0.5, fill="steelblue") + ylim(0,max(PMF2)+0.02) + 
+  geom_text(aes(label = round(PMF2,3), y = PMF2), vjust = -1.25) +
+  labs(title = "Probability Mass",
+       x = "Successes (x)",
+       y = "Probability Mass Function") 
+```
+
+## Binomial distribution skewed to the right 
+
+And when p decreases towards 0, the distribution becomes more and more skewed to the right, meaning that most of the probability mass is distributed on smaller x values, with a longer tail to the right. For example, consider p = 0.25 when n = 10. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# change probability of success to 0.25
+p <- 0.25 
+
+# calculate probabilities for all possible outcomes
+PMF3 <- dbinom(x = n_range, size = n, prob = p)
+
+PMF_df3 <- data.frame(n_range,PMF3)
+
+ggplot(PMF_df3, aes(x = as.factor(n_range), y = PMF3)) + 
+  geom_bar(stat="identity", width=0.5, fill="steelblue") + ylim(0,max(PMF3)+0.02) + 
+  geom_text(aes(label = round(PMF3,3), y = PMF3), vjust = -1.25) +
+  labs(title = "Probability Mass",
+       x = "Successes (x)",
+       y = "Probability Mass Function") 
+
+```
+
+## The following example illustrates how to solve probability questions using dbinom(), pbinom() and qbinom(). 
+
+A student is completing a multiple choice test with ten questions. Each question has two alternatives. The student has not done any preparation at all for the test, and decides to choose her answers completely at random. Run the code below to answer the following:
+
+a) The probability that she will get exactly 5 correct. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# P(X = 5) 
+
+p <- 0.5 # probability of success
+x <- 5 
+
+ans.a <- dbinom(x, n, p) 
+print(round(ans.a,2))
+
+# We can visualise this by using the dataframe we created earlier
+# Let's make a column to store colours accordingly
+PMF_df$colour <- ifelse(PMF_df$n_range == x, 'red','steelblue') 
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = PMF)) +
+  geom_bar(stat="identity", width=0.5, fill=PMF_df$colour) + ylim(0,max(PMF)+0.02) +
+  geom_text(aes(label = round(PMF,3), y = PMF), vjust = -1.25) +
+  labs(title = "Probability Mass, P(X = 5) highlighted in red",
+       x = "Successes (x)",
+       y = "Probability Mass Function")
+```
+
+b) The probability that she will get less than 5 correct. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# P(X <= 4) 
+x = 4
+
+ans.b <- pbinom(x, n, p, lower.tail = TRUE)  
+print(round(ans.b,2))
+
+# We can visualise this by using the dataframe we created earlier
+# Let's make a column to store colours accordingly
+PMF_df$colour <- ifelse(PMF_df$n_range %in% c(0:x), 'red','steelblue')
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = PMF)) +
+  geom_bar(stat="identity", width=0.5, fill=PMF_df$colour) + ylim(0,max(PMF)+0.02) +
+  geom_text(aes(label = round(PMF,3), y = PMF), vjust = -1.25) +
+  labs(title = expression("Probability Mass, P(X "<=" 4) highlighted in red"),
+       x = "Successes (x)",
+       y = "Probability Mass Function")
+
+# The sum of all highlighted probabilities will equal 0.38. 
+# We can get a better idea of how this looks using cumulative probabilities
+cumulativeprobs <- cumsum(PMF_df$PMF)
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = cumulativeprobs)) +
+  geom_bar(stat="identity", width=0.5, fill=PMF_df$colour) + ylim(0,max(cumulativeprobs)+0.03) +
+  geom_text(aes(label = round(cumulativeprobs,3), y = cumulativeprobs), vjust = -0.75) +
+  labs(title = expression("Cumulative Distribution, P(X "<=" 4) highlighted in red"),
+       x = "Successes (x)",
+       y = "Cumulative Mass Function")
+
+```
+
+c) The probability that she will get more than 5 correct. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# P(X > 5)
+x = 5
+
+ans.c <- pbinom(x, n, p, lower.tail = FALSE)  
+print(round(ans.c,2))
+
+# We can visualise this by using the dataframe we created earlier
+# Let's make a column to store colours accordingly
+PMF_df$colour <- ifelse(PMF_df$n_range %in% c(x+1:n), 'red','steelblue')
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = PMF)) +
+  geom_bar(stat="identity", width=0.5, fill=PMF_df$colour) + ylim(0,max(PMF)+0.02) +
+  geom_text(aes(label = round(PMF,3), y = PMF), vjust = -1.25) +
+  labs(title = "Probability Mass, P(X > 5) highlighted in red",
+       x = "Successes (x)",
+       y = "Probability Mass Function")
+
+# The sum of all highlighted probabilities will equal 0.38 (same as b). 
+# Notice the visual difference when using cumulative probabilities.
+cumulativeprobs <- cumsum(PMF_df$PMF)
+
+ggplot(PMF_df, aes(x = as.factor(n_range), y = cumulativeprobs)) +
+  geom_bar(stat="identity", width=0.5, fill=PMF_df$colour) + ylim(0,max(cumulativeprobs)+0.03) +
+  geom_text(aes(label = round(cumulativeprobs,3), y = cumulativeprobs), vjust = -0.75) +
+  labs(title = "Cumulative Distribution, P(X > 5) highlighted in red",
+       x = "Successes (x)",
+       y = "Cumulative Mass Function")
+
+```
+
+d) The 50th percentile of the number she gets correct. 
+
+```{r fig.width = 7, fig.height = 3.5}
+# Minimum x such that  P(X <= x) >= 0.5
+
+proportion <- 0.5
+ans.d <- qbinom(proportion, n, p, lower.tail = TRUE)
+print(ans.d)
+```

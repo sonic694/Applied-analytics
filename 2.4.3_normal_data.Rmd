@@ -1,0 +1,67 @@
+---
+title: "2.4.3 Normal data"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot() function
+```
+
+
+# Normal distribution with mean = 250 and sd = 20 
+
+```{r}
+population_mean <- 250 
+population_sd <- 20 
+```
+
+## Generate 5000 random observations on X as defined above 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+nbr_x <- 5000 # number of simulated values 
+r_data <- rnorm(nbr_x, population_mean, population_sd) 
+head(r_data, 10) # look at first 10 sampled values
+```
+
+## Add a graph of the distribution 
+
+Note that the histogram looks normal as anticipated. A histogram that exactly matched the theoretical distribution would look suspicious!
+
+```{r fig.height = 4, fig.width = 7}
+ggplot() +
+  geom_histogram(aes(r_data), bins = 20, color = 'white', fill = 'steelblue') +
+  labs(x = "x", y = 'Frequency', title = "Histogram of simulated normal data")
+```
+
+## Calculate summary statistics of sample
+
+* The sample mean is close to the population mean.
+* The sample standard deviation is close to the population standard deviation.
+
+```{r}
+# Calculate the sample mean  
+sample_mean <- mean(r_data) 
+cat(paste0('Sample Mean: ',round(sample_mean,3)))
+```
+
+```{r}
+# Calculate the sample standard deviation (s)
+sample_var <- var(r_data) # first calculate the sample variance
+s <- sqrt(sample_var) 
+cat(paste0('Sample Standard Deviation: ',round(s, 3)))
+
+```
+
+
+
