@@ -1,0 +1,392 @@
+---
+title: "1.4.5 Manipulating Data"
+author: ""
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data manipulation
+We will use the powerful and intuitive functions from the {dplyr} package to demonstrate how to perform the most common data manipulation techniques that you need to master. 
+
+Please note: Packages do not typically come pre-installed in R. Before attempting the following exercises you will need to ensure that you have loaded {dplyr} and {ggplot2} in order to complete the exercises. We will also use {magrittr} to access the assignment pipe, {readr} to read the dataset, and the {here} package to take advantage of sensible file paths. You can enter the following command in the beginning of each script that checks that the required packages are present: 
+
+
+```{r, message = FALSE}
+requiredPackages = c('dplyr', 'ggplot2', 'magrittr', 'readr', 'here')
+
+for(p in requiredPackages) {
+
+  if(!require(p, character.only = TRUE)) install.packages(p, repos="http://cran.us.r-project.org")
+}
+
+
+```
+
+You can also install packages directly by typing `install.packages()` in your R Console (at the bottom of the screen), with the package name in inverted commas inside the brackets. Another way is to click on the "Packages" tab (probably the bottom right pane of R Studio), and search for the package you wish to install. You only need to install packages once to have access to them, although you might need to re-install if a newer version of the package is released and you wish to upgrade to that version. You might also need to re-install if you upgrade to a newer version of R. 
+
+Once you have installed {dplyr}, {ggplot2} and {magrittr}, you can load them with the following syntax: 
+
+``` {r}
+library(dplyr)    # For data manipulation 
+library(readr)    # For reading datasets in other formats 
+library(ggplot2)  # For plotting 
+library(magrittr) # For pipes 
+library(here)     # For sensible file paths in the project folder 
+
+``` 
+
+Although packages need to only be installed once, they needed to be loaded into each R session in which you plan on using them. It's often a good idea to include your library calls near the start of your R and RMD files, because it makes it easier for others to see what packages are needed (and install them, if necessary), if you share your code with your colleagues. 
+
+Once loaded we can perform common data manipulation techniques like filtering and sub-setting the data as well as cleaning and changing the classification of variables. One of the key operators that comes with the {dplyr} package is the pipeline or 'pipe' operator `%>%`, which improves the general readability of code.
+
+### Read in the Data 
+``` {r}
+bicycle <- read_csv(here("data", "bicycle.csv"))
+
+``` 
+
+
+### Working with factors 
+Categorical variables (qualitative, nominal and ordinal) are referred to as factors in R. Factors are comprised of levels. For example, the Bicycle dataset loaded previously has a factor `DS_LOCATION`, which has 34 levels corresponding to 34 different survey sites.
+
+``` {r}
+bicycle$DS_LOCATION %>% levels()
+
+``` 
+
+NULL... that doesn't look right... why is that? 
+
+Previously, R read character strings as factors by default, however since R 4.0.0, strings are now read as character strings. To convert strings to factors, we can use the `as.factor()` function. 
+
+``` {r}
+# This is the base R approach - we're assigning a value to the variable in this manner: 
+bicycle$DS_LOCATION <- as.factor(bicycle$DS_LOCATION) # Convert it to a factor 
+
+# Now we can check the levels: 
+bicycle$DS_LOCATION %>% levels()
+
+``` 
+
+The first part of the code selects the Bicycle object and we use the dollar sign to signal the selection of a variable, in this case DS_LOCATION. We then instruct R to copy over this variable using the same values from `Bicycle$DS_LOCATION` columns, but as a factor, using the as.factor() function. If you’re successful, the DS_LOCATION variable will be updated as a factor with 34 levels. 
+
+Sometimes R imports data without knowing what it really means. For example, NB_TRAFFIC_SURVEY has been imported as an integer, int. 
+
+``` {r}
+bicycle$NB_TRAFFIC_SURVEY %>% class()
+
+``` 
+
+However, this variable corresponds to a survey identifier, or nominal variable. The nominal scale of this variable is not meaningful, in the same way as a credit card number. We cannot meaningfully apply mathematical operations. We can also tell R to treat this variable as a factor in the same manner. This time, we'll use the tidyverse approach (using an assignment pipe and then mutating the data frame to change the variable with {dplyr}): 
+
+``` {r}
+bicycle %<>% 
+  mutate(NB_TRAFFIC_SURVEY = as.factor(NB_TRAFFIC_SURVEY))
+
+``` 
+
+The mutate function changes the data frame by either 'growing' a new variable/column, or by changing an existing variable/column. In this case, we've told it to change or create a variable called `NB_TRAFFIC_SURVEY` by taking the existing `NB_TRAFFIC_SURVEY` and converting it to a factor. 
+
+Now R will treat this variable as a numeric label and not a meaningful integer. R will convert factors to numeric levels based on numeric/alphabetical order. 
+
+Let’s consider the day variable. If we converted to a factor using `as.factor()`, we can see that these would be the levels (we aren't assigning it, just outputting the levels, as if it were a factor): 
+```{r}
+levels(as.factor(bicycle$day))
+
+```
+
+This has given us the output in alphabetical order, so R will treat Fri = 1, Mon = 2, Sat = 3, etc. This isn’t correct and is why you need to pay careful attention to factors in your dataset. We can reorder factor levels using the factor() function. Here’s how:
+
+``` {r} 
+bicycle %<>% 
+  mutate(day = factor(day, 
+                      levels = c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"), 
+                      labels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")))
+
+levels(bicycle$day)
+
+``` 
+
+This has specified Sunday = 1, Monday = 2, etc. as required. 
+
+Factors are used for categorical data - there are two types of categorical variables: nominal and ordinal. Nominal categorical variables have no natural order, perhaps the colour of a car in a dataset of car accidents: "blue" is not more colour than "red" (perhaps if you were a physicist working with the various wave frequencies of light, there is a natural order, but for our car crash dataset, the order of the colours is meaningless). Ordinal variables, however, have a natural order, for example, age group, where 0-5 years is less than 25-30 years. Similarly, in a grades dataset, there is a natural order - a High Distinction is greater than a Distinction, for example. You can tell R whether a variable is ordinal or nominal by using the `ordered = TRUE` argument in the `factor()` function. 
+
+Although time variables are generally not considered ordinal variables, due to their cyclical nature, we can see how to apply this by converting `Season` to an ordered factor: 
+
+``` {r}
+bicycle %<>% 
+  mutate(Season = factor(Season, 
+                          levels = c("Spring", "Summer", "Autumn", "Winter"), 
+                          ordered = TRUE)) 
+
+str(bicycle$Season)
+
+``` 
+
+We can also use the extremely useful functions for dealing with factors from the {forcats} package. To install the {forcats} package, either use your mouse and from the packages sub-window, click install and in the packages field type "forcat", or use the command below.
+
+``` {r} 
+# install.packages("forcats")
+
+``` 
+
+Again, to be able to use the {forcats} functions it needs to be activated within the current project. This can either be using your mouse and from the packages sub-window, finding the {forcats} and ensuring it is selected (check mark) or use the command below.
+
+``` {r} 
+library(forcats)
+
+``` 
+
+Now, returning to the "day" variable, if we wanted Monday first: 
+
+``` {r} 
+bicycle %<>% 
+  mutate(day = fct_relevel(day, "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+``` 
+
+Sometimes we need to assign different labels to factors. Let’s look at the weekend variable. This is a logical/binary variable where `TRUE` indicates a Saturday or Sunday observation, otherwise for weekdays it’s `FALSE`. Let’s change this variable to a more descriptive version using base code:
+
+``` {r}
+bicycle$weekend <- bicycle$weekend %>% as.factor() 
+
+bicycle$weekend <- bicycle$weekend %>% 
+  factor(levels = c("FALSE", "TRUE"), 
+         labels = c("Weekday", "Weekend")) 
+
+bicycle$weekend %>% levels()
+
+```
+
+Had we used the forcats package instead (don’t run this code if you ran the previous):
+
+``` {r eval = FALSE}
+bicycle$weekend <- bicycle$weekend %>% as.factor() 
+
+bicycle$weekend <- bicycle$weekend %>% 
+  fct_recode("Weekend" = "TRUE", 
+             "Weekday" = "FALSE")
+
+``` 
+
+You can see how `fct_recode` does not require levels to be specified.
+
+Sometimes we need to store numeric values as factors. Let’s look at the `Quarter` variable. This variable records the quarter of year as 1, 2, 3 or 4. Let’s convert this variable to a factor and label the factor accordingly. 
+
+``` {r}
+bicycle %<>% 
+  mutate(Quarter = factor(Quarter, 
+                          levels = c(1, 2, 3, 4), 
+                          labels = c("1st Quarter", "2nd Quarter", "3rd Quarter", "4th Quarter"), 
+                          ordered = TRUE))
+
+``` 
+
+The `levels = ` argument refers to the numeric values defining each quarter, the `labels = ` argument define a descriptive label for each level, and the `ordered = TRUE` argument ensures that R treats the factor as an ordinal categorical variable, rather than a nominal categorical variable. 
+
+
+### Filtering and sub-setting data
+A key part of data manipulation is knowing how to filter and subset data. For example, you might want to select and analyse only the data pertaining to summer. We can use the `filter()` function from the {dplyr} package for this purpose:
+
+``` {r} 
+bicycle_summer <- bicycle %>% 
+  filter(Season == "Summer") 
+
+bicycle_summer$Season %>%  
+  summary()
+
+``` 
+
+This code will create a new data frame object called `Bicycle_Summer` by selecting only the cases where season is equal to 'Summer'. Note the use of the logical operator `==`, which means 'is equal to'.
+
+We can quickly build more complete filters by joining logical operators. This time, let’s select observations from summer and spring:
+
+``` {r}
+bicycle_summer_spring <- bicycle %>% 
+  filter(Season == "Summer" | Season == "Spring") 
+
+bicycle_summer_spring$Season %>% 
+  summary
+
+``` 
+
+Note the use of the "|" logical operator, which means 'OR'. 
+
+We could also use the `%in%` operator: 
+
+``` {r}
+bicycle_spring_summer <- bicycle %>% 
+  filter(Season %in% c("Summer", "Spring")) 
+
+bicycle_spring_summer$Season %>% 
+  summary
+
+``` 
+
+You will note that we have the same output. 
+
+We can also add more complex filters by referring to other variables. The following code selects all observations from summer or spring after the year 2009.
+
+``` {r} 
+bicycle_summer_spring_2009 <- bicycle %>% 
+  filter((Season=="Summer" | Season =="Spring") & NB_YEAR >= 2009)
+
+``` 
+
+Here is a frequency table of the original and filtered datasets:
+
+``` {r} 
+table(bicycle$Season, bicycle$NB_YEAR)
+
+``` 
+
+Compare it with: 
+
+``` {r}
+table(bicycle_summer_spring_2009$Season, bicycle_summer_spring_2009$NB_YEAR)
+
+``` 
+
+Notice in the code how the different datasets are identified to be used to create the tables.
+
+
+### Adding a new variable 
+You can create new variables in a dataset by recoding or manipulating existing variables. For example, if we did not have the weekend variable, we could use the day variable to create it. There are many ways to do this. We will take a look at using the `fct_recode()` function to do this quickly. To add a new variable, we assign a new variable name to the data frame:
+
+``` {r}
+bicycle$new_weekday_variable <- bicycle$day %>% 
+  fct_recode("weekday" = "Monday", "weekday" = "Tuesday", "weekday" = "Wednesday", 
+             "weekday" = "Thursday", "weekday" = "Friday", 
+             "weekend" = "Saturday", "weekend" = "Sunday")
+# Check
+
+table(bicycle$new_weekday_variable, bicycle$day)
+
+``` 
+
+Notice `# Check` in the third line – this is a comment. Comments can be used to document the purpose, function or add information about the code you are writing. In this case the comment indicates the next line of code represents a check to confirm the code above has worked as expected. You can toggle commenting and uncommenting code for an entire line or selected lines by using CTRL + SHIFT + C. 
+
+You can also add new variables as transformations of existing variables. For example, we can create a total 'peak' proportion tragic variable by adding the `CT_VOLUME_AMPEAK` and `CT_VOLUME_PM_PEAK` values and dividing by `CT_VOLUME_24HOUR.` Or we can write this as:
+
+$$ Peak = \frac{AM \space Peak + PM \space Peak}{24 \space hour \space Total} $$
+This variable will tell us the proportion of daily traffic that occurred during morning and evening peak times. We can use `mutate()` function from the {dplyr} package.
+
+``` {r} 
+bicycle <- bicycle %>% 
+  mutate(peak = (CT_VOLUME_AMPEAK + CT_VOLUME_PMPEAK) / CT_VOLUME_24HOUR)
+
+``` 
+
+Why use mutate? If we didn’t, this is how the code would look.
+
+``` {r}
+bicycle$peak <- (bicycle$CT_VOLUME_AMPEAK + bicycle$CT_VOLUME_PMPEAK) / bicycle$CT_VOLUME_24HOUR 
+
+``` 
+
+The constant reference to the Bicycle data object seems redundant. You can read more about the advantages of using the dplyr package on the [https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html](Comprehensive R Action Network CRAN website).
+
+
+### Selecting variables 
+Sometimes we want to narrow the focus of our dataset by considering only a subset of variables. For example, in the bicycle dataset we might need to extract only the location, date and 24-hour traffic volume variables. We can achieve this using the `select()` function from the {dplyr} package.
+
+``` {r} 
+bicycle_volume <- bicycle %>% 
+  dplyr::select(DS_LOCATION, DT_ANALYSIS_SUMMARY, CT_VOLUME_24HOUR)
+
+# we can look at the head of the data frame using
+bicycle_volume %>% head()
+
+``` 
+
+### Ordering datasets 
+Ordering a dataset facilitates easy searching and is necessary for certain statistical functions. To order a dataset we can use the `arrange()` function from the {dplyr} package. Let’s order the bicycle dataset by `DS_LOCATION`, `NB_YEAR` and `NB_MONTH.`
+
+``` {r}
+bicycle_sorted <- bicycle %>% 
+  arrange(DS_LOCATION, NB_YEAR, NB_MONTH) 
+
+bicycle_sorted %>% head()
+
+```
+
+### Working with dates and times 
+Working with dates and times in R can be a little tricky. However, with the use of some useful packages and functions, things can remain relatively straightforward. Let’s take a look at the `DT_ANALYSIS_SUMMARY` variable. 
+
+``` {r} 
+bicycle$DT_ANALYSIS_SUMMARY %>% class
+
+``` 
+
+This is wrong because the values refer to dates:
+
+``` {r} 
+bicycle$DT_ANALYSIS_SUMMARY %>% head
+
+``` 
+
+The dates are in dd/mm/yyyy. The lubridate package provides a powerful set of functions for working with dates. Let’s fix the `DT_ANALYSIS_SUMMARY` variable. As lubridate is a new package, you will need to install the package onto your version of RStudio, and then include this library into your current project. If you would prefer to use your mouse, then you don't need the first two lines of this code block. 
+
+``` {r} 
+# install.packages("lubridate")
+library(lubridate)
+bicycle$DT_ANALYSIS_SUMMARY <- bicycle$DT_ANALYSIS_SUMMARY %>% dmy
+bicycle$DT_ANALYSIS_SUMMARY %>%  class
+
+``` 
+
+As you can see, the `dmy()` function tells R the format of the date according to dd/mm/yyyy. You can use other combination like `ymd`, `mdy`, etc. You can also apply other useful functions to extract important information once the data class has been applied. For example, the following code can be used to extract the day of the week, the month or the year:
+
+``` {r} 
+bicycle$DT_ANALYSIS_SUMMARY %>% 
+  wday(label = TRUE) %>%  
+  head
+
+bicycle$DT_ANALYSIS_SUMMARY %>% 
+  month(label = TRUE) %>%  
+  head
+
+bicycle$DT_ANALYSIS_SUMMARY %>% 
+  year %>%  
+  head
+
+``` 
+
+The {lubridate} package is also excellent at handling time. For example, let’s consider the following top five marathon times in a common hh:mm:ss format.
+
+``` {r} 
+times <- c("02:02:57","02:03:03","02:03:05","02:03:13","02:03:13")
+times %>% class
+
+``` 
+
+Now we can convert them to time format:
+
+``` {r} 
+times <- times %>% hms
+
+times %>% class
+
+``` 
+
+We can do a wide range of useful transformations of time once we have the data in a time format. The following code extracts the number of seconds or minutes from the time vector.
+
+``` {r} 
+times %>% second
+times %>% minute
+
+``` 
+
+Calculate difference between top two times in seconds:
+
+``` {r} 
+times[2] %>% seconds - times[1] %>% seconds
+
+``` 
+
+While that was quite a lot to go through, the key to becoming proficient in R is to practice. For more details see the introduction to R notes on the [https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html](CRAN website) or look at the Bootcamp 2, which is linked to in the [https://rmit.instructure.com/courses/82539/pages/build-your-r-coding-confidence-before-your-start](Build your R coding confidence before your start).
+
+
