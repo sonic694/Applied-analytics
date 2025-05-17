@@ -1,0 +1,342 @@
+# Descriptive statistics and plots using diamonds dataset
+
+The Diamonds dataset includes the prices and other attributes of almost 54,000 diamonds. The variables are as follows:
+
+* **price**: price in US dollars ($326 - $18,823)
+* **carat**: weight of the diamond (0.2 - 5.01)
+* **cut**: quality of the cut (Fair, Good, Very Good, Premium, Ideal)
+* **colour**: diamond colour, from J (worst) to D (best)
+* **clarity**: a measurement of how clear the diamond is (I1 (worst), SI2, SI1, VS2, VS1, VVS2, VVS1, IF (best))
+* **x**: length in mm (0–10.74)
+* **y**: width in mm (0–58.9)
+* **z**: depth in mm (0–31.8)
+* **depth**: total depth percentage = z / mean(x, y) = 2 * z / (x + y) (43–79)
+* **table**: width of top of diamond relative to widest point (43–95)
+
+
+##Load libraries
+
+If you haven't loaded the following packages, please do so now: 
+``` {r} 
+# install.packages("dplyr")
+# install.packages("readr")
+# install.packages("here") 
+# install.packages("magrittr") 
+# install.packages("RColorBrewer")
+
+```
+
+
+
+Once again we will use the standard data manipulation library dplyr.
+
+```{r Libraries}
+library(dplyr)
+library(readr)
+library(here)
+
+```
+
+
+##Load data
+
+```{r LoadDataFromCSV}
+Diamonds <- read_csv(here("data", "Diamonds.csv"))
+
+```
+
+
+##Data wrangling
+
+Ensures that the cut, colour and clarity variables are treated correctly as ordered qualitative factors.
+
+```{r CleanFactors}
+Diamonds$cut<- factor(Diamonds$cut, levels=c('Fair','Good','Very Good','Premium','Ideal'), 
+                      ordered=TRUE)
+
+Diamonds$color<- factor(Diamonds$color, levels=c('J','I','H','G','F','E','D'), 
+                        ordered=TRUE)
+
+Diamonds$clarity<- factor(Diamonds$clarity, 
+                          levels=c('I1','SI2','SI1','VS2','VS1','VVS2','VVS1','IF'), 
+                           ordered=TRUE)
+```
+
+
+##Check the data
+
+Lets look at a random sample of 5 rows from the data.
+
+```{r CheckData}
+Diamonds[sample(nrow(Diamonds), 5), ]
+
+```
+
+
+##Descriptive statistics for qualitative variables
+
+
+###Frequencies
+
+Let’s summarise the colour variable by counting the frequencies of different colour diamonds in the dataset. We use the base table() function:
+
+```{r }
+Diamonds$color %>% table()
+
+```
+
+Now, what if we want proportions reported instead? We can use the prop.table() function:
+
+```{r }
+Diamonds$color %>% table() %>% prop.table()
+
+```
+
+We can then convert these into percentages
+
+```{r }
+Diamonds$color %>% table() %>% prop.table()*100
+
+```
+
+###Bar charts
+
+To create a bar chart summarising the percentage of colours in the sample, we first save the percentages into an table object, called freq.
+
+
+```{r }
+freq <- Diamonds$color %>% table() %>% prop.table()*100
+
+# plot using a bar chart
+barplot(freq, main = "Diamond Cut Quality - Percentage", ylab = "Percent", xlab = "Colour")
+
+```
+
+Notice how the title, y and x axis labels were defined using main, ylab and xlab, respectively. If you want to add some colour use the col = option. You can also order by columns, for example the frequency.
+
+```{r }
+barplot(freq[order(freq, decreasing = TRUE)], main = "Diamond Cut Quality - Percentage", 
+        ylab = "Percent", xlab = "Colour", col = "deepskyblue")
+
+```
+
+
+###Cross-tabulations
+
+Contingency tables or cross tabulations organise two qualitative variables into rows and columns. For example, what if we wanted to look at the relationship between colour and cut? We can modify the table() function to report this:
+
+```{r }
+table(Diamonds$color,Diamonds$cut) %>% prop.table(margin = 2)
+
+```
+
+We use the round() function to limit the table to three decimal places:
+
+```{r }
+table(Diamonds$color,Diamonds$cut) %>% prop.table(margin = 2) %>% round(3)
+
+```
+
+
+###Clustered Bar Charts
+
+Clustered bar plots are a great way to help understand the relationships between two categorical variables. First, we save the contingency table as an object called color_cut:
+
+```{r }
+color_cut <- table(Diamonds$color,Diamonds$cut) %>% prop.table(margin = 2)
+
+barplot(color_cut, main = "Diamond Colour by Cut Quality",
+          ylab = "Proportion within Cut", xlab = "Cut")
+
+```
+
+We can add the grid() option to make the plot easier to read values off the axis. We also use beside = TRUE to align the bars next to each other:
+
+```{r }
+barplot(color_cut, main = "Diamond Colour by Cut Quality",
+        ylab = "Proportion within Cut", 
+        xlab = "Cut", beside=TRUE)
+grid()
+
+```
+
+By itself this is not very clear. We need to add a legend, add a buffer around it by setting the y-axis limit, and move from grey scale. We can use a colour Brewer palette from the RColorBrewer package (install this package first). For example, we can set a diverging blue-red palette using col=brewer.pal(n = 7, name = "RdBu").
+
+
+```{r }
+library(RColorBrewer)
+
+barplot(color_cut, 
+        main = "Diamond Colour by Cut Quality", 
+        ylab = "Proportion within Cut",
+        xlab = "Cut", beside = TRUE, 
+        legend = rownames(color_cut), 
+        args.legend = c(x = "top", horiz = TRUE, title = "Color"),
+        ylim = c(0, 0.30),
+        col = brewer.pal(7, name = "RdBu"))
+
+grid()
+
+```
+
+
+
+##Descriptive statistics for quantitative variables 
+
+###Histogram
+
+Histograms are a good way to visualize continuous variables. However they are best used with the summary statistics. As an example lets look at the distribution of diamond depths.
+
+```{r }
+Diamonds$z %>% hist(xlab = "Diamond Depth (mm)", 
+                    main = "Histogram of Diamond Depths (mm)", 
+                    col = "dodgerblue3")
+
+```
+
+As you can see there is something wrong here. Lets look at the minimum and maximum values for this variable.
+
+```{r }
+Diamonds$z %>% summary()
+
+```
+
+We have some diamonds with 0 depth (impossible and probably a data entry error) and a diamond with a depth of 31mm! Probably another error, as the carat measurement for this case is only .5. Let’s focus our attention on diamonds between 2 and 6 mm using the filter() function from dplyr. We will call the filtered data file object, Diamonds_clean.
+
+```{r }
+Diamonds_clean <- Diamonds %>% filter(z < 6 & z > 2)
+
+```
+
+Now re-run the histogram on the filtered data:
+
+```{r }
+hist(Diamonds_clean$z, 
+     xlab = "Diamond Depth (mm)",
+     main = "Histogram of Diamond Depths (mm)", 
+     col = "dodgerblue3")
+
+```
+
+We can also panel histograms to help us compare a quantitative variable across categories, e.g. cut. We have to use a slightly different histogram() function from the lattice package:
+
+```{r }
+library(lattice)
+Diamonds_clean %>% histogram(~ z|cut, 
+                             col = "dodgerblue3",
+                             layout = c(1, 5), data = ., xlab = "Depth (mm)")
+
+```
+
+##Summary Statistics using dplyr
+
+R has many built-in functions and other functions available in various packages to quickly summarise your data. The following code will show you the basic functions. We will summarise the carat variable:
+
+```{r }
+Diamonds$carat %>% mean() #Mean
+
+```
+
+You should get a mean of 0.7979397
+
+###Statistics using dplyr
+
+The power of the dplyr package can be used to generate helpful descriptive statistics tables by groups. The logic is simple to remember. Select your dataset, group by a factor and summarise. You can select the descriptive statistics you need.
+
+There are many other packages that make this easier, however, dplyr is by far the most flexible and widely used in industry.
+
+Let’s step through the process. We will summarise the diamonds’ carat by their cut. The table will include min, Q1
+, median, Q3, max, mean, standard deviation, n and missing value count. I’ve included quite a few descriptive statistics so you can get a sense of how to customise the table. Essentially, the table can incorporate any descriptive functions in R provided the function results in a single value. Take note how we have to include the option na.rm = TRUE to most of these functions.
+
+```{r }
+Diamonds %>% 
+        group_by(cut) %>% 
+        summarise(Min = min(carat, na.rm = TRUE),
+                  Q1 = quantile(carat, probs = 0.25, na.rm = TRUE),
+                  Median = median(carat, na.rm = TRUE),
+                  Q3 = quantile(carat, probs = 0.75, na.rm = TRUE),
+                  Max = max(carat, na.rm = TRUE),
+                  Mean = mean(carat, na.rm = TRUE),
+                  SD = sd(carat, na.rm = TRUE),
+                  n = n(),
+                  Missing = sum(is.na(carat)))
+
+```
+
+Now it is easy to factor by another grouping variable.
+
+```{r }
+Diamonds %>% 
+        group_by(cut, color) %>% 
+        summarise(Min = min(carat, na.rm = TRUE),
+                  Q1 = quantile(carat, probs = 0.25, na.rm = TRUE),
+                  Median = median(carat, na.rm = TRUE),
+                  Q3 = quantile(carat,probs = 0.75, na.rm = TRUE),
+                  Max = max(carat, na.rm = TRUE),
+                  Mean = mean(carat, na.rm = TRUE),
+                  SD = sd(carat, na.rm = TRUE),
+                  n = n(),
+                  Missing = sum(is.na(carat)))
+
+```
+
+###Box plots
+
+Let’s get a box plot of the carat variable using R:
+
+```{r }
+Diamonds$carat %>%  
+        boxplot(main = "Box Plot of Diamond Carat",
+                ylab = "Carat", 
+                col = "grey")
+
+```
+
+We use a formula, carat ~ cut, and add data = . to pipe in the dataset, in order to produce a side-by-side box plot:
+
+```{r }
+Diamonds %>% 
+        boxplot(carat ~ cut, data = ., 
+                main = "Box Plot of Diamond Carat by Cut", 
+                ylab = "Carat", xlab = "cut", 
+                col="grey")
+
+```
+
+###Scatter plots
+
+Scatter plots are produced using the base plot() function. For example, let’s get a scatter plot of diamond width (y) length (x) measured in mm:
+
+```{r }
+plot(y ~ x, data = Diamonds, 
+     ylab = "Width (mm)", xlab = "Length (mm)", 
+     col = "orangered",
+     main = "Length by Width")
+
+```
+
+As you can see, we have outliers at Length = 0 mm and widths > 20 mm that are distorting the main trend. Let’s filter them out and re-do the scatter:
+
+```{r }
+Diamonds_clean <- Diamonds %>% filter(y < 20 & x > 0)
+
+plot(y ~ x, data = Diamonds_clean, 
+     ylab = "Width (mm)", xlab = "Length (mm)",
+     col = "orangered", main = "Length by Width")
+
+```
+
+Now the trend is more apparent. We shouldn’t forget to investigate the outliers.
+
+
+###Outliers
+
+You should always investigate the outliers. Here we will just construct a data frame that would form the first stage of this process.
+
+```{r }
+Diamonds_outliers <- Diamonds %>% filter(y > 20 | x < 0)
+
+Diamonds_outliers
+
+```
+
