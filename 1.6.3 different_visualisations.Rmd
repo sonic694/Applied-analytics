@@ -1,0 +1,178 @@
+# Income demographics using ggplot2
+
+The data set used in this task was generated using the ABS 2016 survey weekly income bands data available at http://stat.data.abs.gov.au/Index.aspx?DataSetCode=ABS_C16_T13_LGA. 
+
+The specific income values are a randomly generated sample which does not represent real individuals, while retaining the correct statistical properties for each demographic and the nation as a whole.
+
+The AusIncomeSample dataset includes about 200k rows with variables as follows:
+
+* **Age**: Age bin for the individual, for example between 30 and 34 years (inclusive)
+* **Sex**: Gender of the individual
+* **Income**: Income of the individual in units of AUD per week
+
+##Load libraries
+
+```{r Libraries}
+library(dplyr)    # for data wrangling
+library(ggplot2)  # for visualisation 
+library(magrittr) # for pipes 
+library(readr)    # for reading data 
+library(here)     # for sensible file paths 
+
+```
+
+
+##Load data
+
+Note that I have loaded the data into a data frame with the naming convention of ``_df`` as a suffix. This is so that I know this object is a data frame and not a variable (like file_name is) or a vector.
+
+```{r LoadDataFromCSV}
+file_name <- "AusIncomeSample.csv"
+income_df <- read_csv(here("data", file_name)) 
+
+```
+
+
+##Check the data
+
+It is always good practice to quickly check the data set before doing a complete analysis.
+
+Firstly let's have a look at the column names.
+
+```{r }
+names(income_df)
+
+```
+
+Now let's have a look at the summary of each column.
+
+```{r }
+summary(income_df)
+```
+
+Here we see that we have two categorical variables, age and sex, and a columm made up of integers. Although age and sex are categorical variables, they were read in as character. We should convert them to factors. First, we need to investigate what levels exist in the data, let's start with sex: 
+
+``` {r}
+income_df %>% count(Sex)
+
+``` 
+
+The dataset contains females, males and persons, which is a total sum of females and males. We should remove this total to avoid double counting. 
+
+``` {r}
+income_df %<>% 
+  filter(Sex %in% c("Females", "Males")) %>% 
+  mutate(Sex = as.factor(Sex))
+
+``` 
+
+Now we can check the age groups: 
+
+``` {r}
+income_df %>% count(Age)
+
+``` 
+
+No groups that look to be totals, this time, however these age groups have a natural ordering, so we should convert them to an ordered factor: 
+
+``` {r} 
+income_df %<>% 
+  mutate(Age = factor(Age, 
+                      levels = c("15 - 19", "20 - 24", "25 - 29", 
+                                 "30 - 34", "35 - 39", "40 - 44", "45 - 49", 
+                                 "50 - 54", "55 - 59", "60 - 64", "65 - 69", 
+                                 "70 - 74", "75 - 79", "80 - 84", "85 - 89", 
+                                 "90 - 94", "95 - 99", "100 and over"), 
+                      ordered = TRUE)) 
+
+``` 
+
+Now we can take another look at the summary: 
+
+``` {r}
+summary(income_df)
+
+``` 
+
+Note that previously, the summary only indicated that age and sex were character variables. By converting to a factor, the summary now provides us with frequency counts of each of the levels within each of these categorical variables. 
+
+###Get a sample
+
+Lets have a look at a sample of 10 rows from the incomes data frame. This is easy to do using the dplyr package.
+
+
+```{r}
+income_sample_df <- sample_n(income_df, 20)
+income_sample_df
+
+```
+
+
+###Dot plots
+
+Dot plots are a great visualisation for small samples. For example, let’s create a dot plot using our random sample.
+
+```{r}
+qplot(data = income_sample_df, x = Income, geom = "dotplot")
+
+```
+
+We can use the binwidth option to change the number stacks or breaks in the dot plot. To show you another way to do this we will use the pipe function from dplyr.
+
+```{r}
+income_sample_df %>% qplot(data = ., x = Income, geom = "dotplot", binwidth = 500)
+```
+
+Now that we have more of a feel for our data we can proceed with the analysis.
+
+
+##Income calculations
+
+Firstly, let's convert the weekly incomes into the more familar annual incomes (in AUD).
+
+```{r AnnualIncome}
+income_df$AnnualIncome <- income_df$Income * 52
+
+```
+
+##Group data by demographics
+
+```{r IncomeBreakdown}
+income_summary_df <- income_df %>% group_by(Age, Sex) %>% 
+  mutate(MeanIncome = mean(AnnualIncome), MedianIncome = median(AnnualIncome)) %>%
+  select(Age, Sex, MeanIncome, MedianIncome) %>% distinct()
+
+# remove the 100+ age category due to low statistics and aesthetics for the final plot
+income_summary_df <- income_summary_df %>% filter(Age != '100 and over')
+```
+
+
+
+##Plot incomes by demographics
+
+Now we will introduce the tile plot from ggplot to show the mean and median incomes as a function of each demographic.
+
+```{r IncomePlot_Mean}
+gg <- ggplot(income_summary_df, aes(x=Age, y=Sex, fill=MeanIncome))
+gg <- gg + geom_tile(color="transparent", size=0.1)
+gg <- gg + labs(x="Age group", y="Gender", fill="Mean Income")
+gg <- gg + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggsave("IncomeDemographics_Mean.png", width = 5, height = 4)
+# output to screen
+gg
+
+```
+
+```{r IncomePlot_Median}
+gg <- ggplot(income_summary_df, aes(x=Age, y=Sex, fill=MedianIncome))
+gg <- gg + geom_tile(color="transparent", size=0.1)
+gg <- gg + labs(x="Age group", y="Gender", fill="Median Income")
+gg <- gg + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggsave("IncomeDemographics_Median.png", width = 5, height = 4)
+# output to screen
+gg
+
+```
+
+
+Place the cursor on each of the elements of the tile plots with which you are unfamiliar, and use the F1 key to bring up the help file. The package ggplot uses a fairly intuitive naming convention for its components but the help file for options is always useful. You can also access the help file by typing `?function` into your R Studio Console (where 'function' for which you wish to read the help file). 
