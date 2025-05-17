@@ -1,0 +1,87 @@
+# Descriptive statistics: Income example using ABS statistics
+
+The data set used in this task was generated using the ABS 2016 survey weekly income bands data available at http://stat.data.abs.gov.au/Index.aspx?DataSetCode=ABS_C16_T13_LGA. 
+
+The specific income values are a randomly generated sample which does not represent real individuals, while retaining the correct statistical properties for each demographic and the nation as a whole.
+
+
+##Load libraries
+```{r Libraries}
+# Install packages if you have not already done so 
+# install.packages("dplyr") 
+# install.packages("readr")
+# install.packages("ggplot2") 
+# install.packages("magrittr") 
+# install.packages("here")
+
+library(dplyr)    # For data manipulation 
+library(readr)    # For reading data 
+library(ggplot2)  # For data visualisation 
+library(magrittr) # For pipes 
+library(here)     # For sensible file paths 
+
+```
+
+## Create Output folder if one does not already exist 
+``` {r outputfolder}
+if(!dir.exists("outputs")) {
+  dir.create("outputs")
+}
+
+``` 
+
+
+##Load data
+
+```{r LoadDataFromCSV}
+file_name <- "AusIncomeSample.csv"
+income_df = read_csv(here("data", file_name))
+
+```
+
+
+##Income calculations
+
+Convert the weekly incomes into annual incomes (in AUD).
+
+```{r AnnualIncome}
+income_df$AnnualIncome <- income_df$Income * 52 
+
+# Alternative solution: 
+income_df %<>% 
+  mutate(AnnualIncome = Income * 52)
+
+```
+
+
+##Plot income distribution
+
+Plot the distribution of annual incomes on a logarithmic x-axis scale using ggplot.
+
+The black line shows the median value while the light grey line shows the mean value.
+
+```{r IncomePlot}
+gg <- ggplot()
+gg <- gg + geom_histogram(aes(x=income_df$AnnualIncome), bins=50)
+gg <- gg + scale_x_continuous(trans='log10')
+gg <- gg + labs(x="Annual income (AUD)", y="Count")
+gg <- gg + geom_vline(xintercept = mean(income_df$AnnualIncome), size=1.5, colour = "grey")
+gg <- gg + geom_vline(xintercept = median(income_df$AnnualIncome), size=1.5, colour = "black")
+ggsave(here("outputs", "AnnualIncome.png"), device = "png", width = 5, height = 4)
+
+# output to screen
+gg
+
+```
+
+
+##Descriptive statistics
+
+Output the mean and median statistics
+
+```{r DescriptiveStatistics}
+print(paste("Mean annual income (AUD):", round(mean(income_df$AnnualIncome), 1)))
+print(paste("Median annual income (AUD):", median(income_df$AnnualIncome)))
+
+```
+
