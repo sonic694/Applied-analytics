@@ -1,0 +1,42 @@
+---
+title: "2.2.3 Simple random sampling"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+
+## Draw a random sample of size 500
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+N <- 10000 # population size 
+n <- 500 # sample size 
+id <- 1:N # unique identifier assigned to each population member 
+
+x <- sample(id,n)
+head(x, 10) # look at first 10 sampled values
+```
+
+## Add a histogram of the identifiers 
+
+Note that the histogram appears quite flat, as anticipated. A histogram that exactly matched the theoretical distribution would look suspicious! 
+
+```{r}
+ggplot() + 
+  geom_histogram(aes(x), boundary = N, bins = 10, color = 'white', fill = 'steelblue') + 
+  scale_x_continuous(limits = c(0, N)) + 
+  labs(x = "x", y = 'Frequency', title = "Histogram of the random sample")
+```

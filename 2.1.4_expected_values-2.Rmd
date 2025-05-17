@@ -1,0 +1,78 @@
+---
+title: "2.1.4 Find the mean and standard deviation of the sum from rolling two dice."
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Load relevant packages
+
+```{r}
+library(plyr) # use for count() function
+library(ggplot2) # use for ggplot() function
+```
+
+## Start by creating all combinations between two vectors (1, 2, 3, 4, 5, 6) 
+
+```{r}
+# We create two identical vectors of six values representing each face of a die
+die_1 <- die_2 <- c(1, 2, 3, 4, 5, 6) 
+
+# Using the rep() function we can build a dataframe to reflect each combination
+df <- data.frame('die_1' = rep(die_1, 6), 'die_2' = rep(die_2, each=6))
+
+# Can also generate like this
+# df <- expand.grid(data.frame(die_1,die_2))
+
+head(df,20)
+```
+
+## Add the sum of each event
+
+```{r}
+df$sum_of_dice <- df$die_1 + df$die_2
+head(df,20)
+```
+
+## Generate frequency table
+
+```{r}
+freq_tbl <- count(df,vars = 'sum_of_dice') 
+
+# Calculate proportion for each summed value
+freq_tbl$prop <- freq_tbl$freq/sum(freq_tbl$freq) 
+
+freq_tbl
+```
+
+## Calculate expected value i.e., weighted mean
+
+```{r}
+mu <- sum(freq_tbl$sum_of_dice * freq_tbl$prop)
+mu
+```
+
+## Calculate variance
+
+```{r}
+# We use the more computationally efficient expression for the variance: 
+sigma_sq <- sum(freq_tbl$sum_of_dice * freq_tbl$sum_of_dice * freq_tbl$prop) - mu^2 
+round(sigma_sq,3)
+```
+
+## Calculate standard deviation
+
+```{r}
+# Standard deviation of the sum is the square root of the variance
+sd <- sqrt(sigma_sq)
+round(sd,3)
+```
+
+\newpage
+## Add a graph of the distribution 
+
+```{r}
+ggplot(data=freq_tbl, aes(x=as.factor(sum_of_dice), y=prop)) + 
+  geom_bar(stat="identity", width=0.5, fill="steelblue") + 
+  labs(x='Sum', y='Probability',title='Probability distribution for the sum of two dice')
+```

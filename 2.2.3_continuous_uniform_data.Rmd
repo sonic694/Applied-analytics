@@ -1,0 +1,91 @@
+---
+title: "2.2.3 Continuous Uniform Data"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+## Uniform distribution on (a, b)
+
+```{r}
+a <- 0 
+b <- 100 
+
+# Calculate the population mean 
+population_mean <- (a + b)/2 
+cat(paste0('Population Mean: ',population_mean))
+```
+
+```{r}
+# Calculate the population variance 
+population_variance <- ((b - a)^2)/12 
+cat(paste0('Population Variance: ',round(population_variance, 3)))
+```
+
+```{r}
+# Calculate the population standard deviation
+population_sd <- abs(b - a)/sqrt(12)
+cat(paste0('Population Standard Deviation: ',round(population_sd, 3)))
+```
+
+## Generate 5000 random observations on X as defined above 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number) # set.seed() allows reproducibility. 
+# This is useful when using random processes i.e., runif() 
+
+n <- 5000 # sample size 
+r_data <- runif(n, min = a, max = b) 
+head(r_data, 10) # look at first 10 sampled values
+```
+
+\newpage
+## Plot distribution of sample
+
+Note that the histogram appears quite flat over (0, 100) as anticipated. A histogram that exactly matched the theoretical distribution would look suspicious! 
+
+```{r}
+ggplot() + 
+  geom_histogram(aes(r_data), boundary = b, bins = 10, color = 'white', fill = 'steelblue') + 
+  scale_x_continuous(limits = c(a, b)) + 
+  labs(x = "x", y = 'Frequency', title = "Histogram of simulated uniform data on (0, 100)") 
+```
+
+## Calculate summary statistics of sample
+
+* The sample mean is close to the population mean.
+* The sample variance is close to the population variance.
+* The sample standard deviation is close to the population standard deviation.
+
+
+```{r}
+# Calculate the sample mean  
+sample_mean <- mean(r_data) 
+cat(paste0('Sample Mean: ',round(sample_mean,3)))
+```
+
+```{r}
+# Calculate the sample variance  
+sample_var <- var(r_data) 
+cat(paste0('Sample Variance: ',round(sample_var, 3)))
+```
+
+```{r}
+# Calculate the sample standard deviation (s)
+s <- sqrt(sample_var) 
+cat(paste0('Sample Standard Deviation: ',round(s, 3)))
+
+```
+
+

@@ -1,0 +1,100 @@
+---
+title: "2.2.3 Discrete Uniform Data"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Load relevant packages
+
+```{r}
+# Ensure you have purrr installed
+library(purrr) # for rdunif() function
+library(plyr) # for count() function
+library(ggplot2) # for ggplot() function
+```
+
+
+## Discrete uniform distribution on integers from 1 to 6
+
+```{r}
+a <- 1 
+b <- 6
+
+# Calculate the population mean 
+population_mean <- (a + b)/2 
+cat(paste0('Population Mean: ',population_mean))
+```
+
+```{r}
+# Calculate the population variance 
+population_variance <- (b^2 - 1)/12 
+cat(paste0('Population Variance: ',round(population_variance, 3)))
+```
+
+```{r}
+# Calculate the population standard deviation
+population_sd <- sqrt(population_variance)
+cat(paste0('Population Standard Deviation: ',round(population_sd, 3)))
+```
+
+## Generate 5000 random observations on X as defined above 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+n <- 5000 # sample size 
+r_data <- rdunif(n, b, a)
+head(r_data, 10) # look at first 10 sampled values
+```
+
+## Generate frequency table and calculate proportion 
+
+```{r}
+distn <- count(r_data,vars = 'r_data')
+distn$propn <- distn$freq/n
+distn
+```
+
+## Plot distribution of sample
+
+Note that the plot appears quite flat as anticipated. A plot that exactly matched the theoretical distribution would look suspicious!
+
+```{r}
+ggplot(data=distn, aes(x=as.factor(r_data), y=propn)) +  
+  geom_bar(stat="identity", width=0.5, fill="steelblue") +  ylim(0,0.2) +
+  labs(x='x', y='Proportion',title='Empirical discrete uniform distribution')
+```
+
+## Calculate summary statistics of sample
+
+* The sample mean is close to the population mean.
+* The sample variance is close to the population variance.
+* The sample standard deviation is close to the population standard deviation.
+
+
+```{r}
+# Calculate the sample mean  
+sample_mean <- mean(r_data) 
+cat(paste0('Sample Mean: ',round(sample_mean,3)))
+```
+
+```{r}
+# Calculate the sample variance  
+sample_var <- var(r_data) 
+cat(paste0('Sample Variance: ',round(sample_var, 3)))
+```
+
+```{r}
+# Calculate the sample standard deviation (s)
+s <- sqrt(sample_var) 
+cat(paste0('Sample Standard Deviation: ',round(s, 3)))
+
+```
+
+
