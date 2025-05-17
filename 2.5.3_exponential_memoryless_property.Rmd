@@ -1,0 +1,38 @@
+---
+title: "2.5.3 Exponential memoryless property"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Illustrate the memoryless property of an exponential distribution using randomly generated data 
+```{r}
+# Suppose X has an exponential distribution with lambda = 1/15 
+lambda <- 1/15 
+
+# Generate 5000 random observations on X 
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+n <- 5000 # number of simulated values 
+
+r_data <- rexp(n, lambda) 
+head(r_data,10) # look at first 10 sampled values
+```
+
+According to the memoryless property, P(X $>$ 25 | X $>$ 15) = P(X $>$ 10). To check this, we will compare the values of both sides of the equation.
+
+```{r}
+
+RHS <- length(which(r_data  > 10))/n
+RHS
+
+LHS <- length(which(r_data  > 25))/length(which(r_data  > 15)) 
+LHS
+```
+
+Our illustration therefore checks out since LHS = RHS approximately.

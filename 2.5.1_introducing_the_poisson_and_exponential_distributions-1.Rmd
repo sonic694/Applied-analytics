@@ -1,0 +1,181 @@
+---
+title: "2.5.1 Introducing the Poisson and exponential distributions"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+### We can use the dpois() function to calculate the probabilities according to the Poisson probability mass function.
+
+```{r}
+# Poisson distribution illustrated for mean = 0.5 
+
+lambda <- 0.5
+
+# we use a range up to 10 for this example,
+# however you can increase this to any number, but you'll notice the
+# probabilities start to extremely small the higher we go
+n_range <- 0:10
+
+# calculate probabilities for 11 outcomes
+PMF <- dpois(x = n_range,lambda = lambda)
+PMF
+```
+
+### Let's visualise this distribution using the ggplot2 packge.
+
+```{r fig.width = 7, fig.height = 3}
+# first create a dataframe to pass the ggplot() function
+PMF_df <- data.frame(n_range,PMF)
+
+# we filter PMF_df to remove extremely small probabilities
+# this is to generate a more readable plot, this is optional
+PMF_df_morethanzero <- PMF_df[PMF_df$PMF > 0.0001,]
+
+ggplot(PMF_df_morethanzero, aes(x = as.factor(n_range), y = PMF)) +
+  geom_bar(stat="identity", width=0.5, fill="steelblue") + ylim(0,max(PMF)) +
+  labs(title = paste("Probability Mass, lambda = ",lambda),
+       x = "x",
+       y = "Probability Mass Function")
+```
+
+### Using a for loop, we can output a few more plots with higher lambda values.
+
+```{r fig.width = 7, fig.height = 3}
+lambdas <- c(2.5,5,10,20)
+
+# we use a higher range as lambda increases
+n_range <- 0:50
+
+# we will use a for loop to iterate over different lambda values
+for(x in lambdas)
+{
+  PMF <- dpois(x = n_range,lambda = x)
+  PMF_df <- data.frame(n_range,PMF)
+  PMF_df_morethanzero <- PMF_df[PMF_df$PMF > 0.0001,]
+  
+  p <- ggplot(PMF_df_morethanzero, aes(x = as.factor(n_range), y = PMF)) +
+    geom_bar(stat="identity", width=0.5, fill="steelblue") + ylim(0,max(PMF)) +
+    labs(title = paste("Probability Mass, lambda = ",x),
+         x = "x",
+         y = "Probability Mass Function")
+  
+  print(p)
+  }
+```
+
+
+
+### Comparison of exponentials with lambda = 0.5, 2.5 
+
+Much like the Poisson, the exponential distribution is skewed to the right. But, unlike the Poisson, the density doesn't morph towards a normal with increasing lambda. In the diagram below we present the density when lambda is 0.5 (in grey) and 2.5 (in blue). We can see that increasing lambda simply increases the likelihood of the time between successive events getting shorter. 
+
+```{r fig.width = 7, fig.height = 3.5}
+
+plot <- ggplot(data = data.frame(x = c(0, 5)), aes(x)) + 
+  stat_function(fun = dexp,
+                geom = "area",
+                fill = "darkgrey",
+                n = 101,
+                args = list(rate = 0.5)) +  
+  stat_function(fun = dexp,
+                geom = "area",
+                fill = "steelblue", 
+                alpha= 0.6, 
+                n = 101,
+                args = list(rate = 2.5)) +  
+
+  xlab("") + ylab("") 
+
+plot 
+```
+
+
+## The following example illustrates how to solve probability questions using pexp() and qexp(). 
+
+Customers arrive at a fast food outlet according to an exponential distribution with a rate of 1 per minute. Run the code below to answer the following:   
+
+a) The probability that the time between two successive customer arrivals will be less than a minute. 
+```{r}
+# Let X denote the time between two successive customer arrivals 
+
+lambda <- 1  
+
+# (a) P(X < 1) 
+
+x_a <- 1 
+ans.a <- pexp(x_a, lambda, lower.tail = TRUE)
+print(round(ans.a,3))
+```
+
+```{r fig.width = 7, fig.height = 4}
+
+# we create a function that can generate shaded plots
+# with shaded distribution
+exp_area <- function(rate = 1, lb, ub, acolor = "lightgray", ...) {
+    x <- seq(0, 5/rate, 0.01) 
+    
+    if (missing(lb)) {
+       lb <- min(x)
+    }
+    if (missing(ub)) {
+        ub <- max(x)
+    }
+
+    x2 <- seq(lb, ub, length = 100)    
+    plot(x, dexp(x, rate = rate), type = "n", ylab = "")
+   
+    y <- dexp(x2, rate = rate)
+    polygon(c(lb, x2, ub), c(0, y, 0), col = acolor)
+    lines(x, dexp(x, rate = rate), type = "l", ...)
+}
+
+# Area
+exp_area(rate = 1, ub = 1, acolor = 'lightblue')
+# Text
+text(0.5, 0.1, paste(round(ans.a*100,2), " %"))
+
+```
+
+
+b) The probability that the time between two successive customer arrivals will be greater than two minutes. 
+```{r fig.width = 7, fig.height = 4}
+# (b) P(X > 2) 
+
+x_b <- 2 
+
+ans.b <- pexp(x_b, lambda, lower.tail = FALSE)
+print(round(ans.b,3))
+
+# Area
+exp_area(rate = 1, lb = 2, acolor = 'lightblue')
+# Text
+text(2.5, 0.2, paste(round(ans.b*100,2), " %"))
+```
+
+
+c) The 95th percentile of the time between two successive customer arrivals. 
+
+```{r fig.width = 7, fig.height = 4}
+# (c) Find x such that  P(X <= x) = 0.95 
+
+p <- 0.95  
+
+ans.c <- qexp(p, lambda, lower.tail = TRUE) 
+print(round(ans.c,3))
+
+# Area
+exp_area(rate = 1, ub = 3, acolor = 'lightblue')
+# Text
+text(0.5, 0.1, "95.00%")
+```

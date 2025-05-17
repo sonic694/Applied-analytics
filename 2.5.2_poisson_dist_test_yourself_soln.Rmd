@@ -1,0 +1,61 @@
+---
+title: "2.5.2 Poisson distribution in context (test yourself solution)"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+Video streaming platforms can have large variation in bandwidth requirements depending on release of new content. Popular or newly released shows can result in the entire platform crashing, causing customer dissatisfaction. 
+
+# Q1. What is the probability of having exactly 10 video requests per second? 
+```{r}
+# Let X denote the number of video requests per second 
+
+lambda <- 10 # Typical number of video streaming requests per second  
+x1 <- 10  
+
+ans1 <- dpois(x1, lambda) 
+round(ans1, 3)
+```
+
+# Q2. What is the probability of there being no more than 5 video requests per second?
+```{r}
+# Require P(X <= 5)  
+x2 <- 5 
+
+ans2 <- ppois(x2, lambda, lower.tail = TRUE)  
+round(ans2, 3)
+```
+
+# Q3. What is the probability of having more than 15 video requests per second?
+```{r}
+# This requires an upper.tail probability, namely P(X > 15)
+
+x3 <- 15 
+ans3 <- ppois(x3, lambda, lower.tail = FALSE) 
+round(ans3, 3)
+```
+
+
+# Q4. If we want to ensure there is less than a 0.1% chance of our platform failing, what rate of video requests per second should we design our maximum bandwidth around while keeping bandwidth costs down?  
+
+What is this question actually asking? Our bandwidth cost will depend on the number of people accessing our site per second. We want to minimise our cost of ensuring that there is a less than 0.1% chance of our platform failing. Equivalently, there should be a greater than 99.9% chance of the platform not failing. We therefore need the minimum number x such that P(X $\leq$ x) $>$ 0.999. This looks quite complex, but the qpois()) function can handle it. 
+
+```{r}
+p <- 0.999
+ans4 <- qpois(p, lambda, lower.tail = TRUE) 
+ans4 # The output is 21. Let's check P(X <= 21)
+
+ppois(21, lambda, lower.tail = TRUE)  
+
+#The output shows that P(X <= 21) > 0.999. Now let's check P(X <= 20) 
+
+ppois(20, lambda, lower.tail = TRUE)  
+
+# The output shows that P(X <= 20) < 0.999, so the minimum value of x which 
+# satisfies the original inequation is therefore 21. 
+```
