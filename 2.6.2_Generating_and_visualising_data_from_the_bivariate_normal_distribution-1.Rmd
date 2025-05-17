@@ -1,0 +1,102 @@
+---
+title: "2.6.2 Generating and visualising data from the bivariate normal distribution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+# Ensure you have "MASS" and "VGAM" packages installed
+library(MASS) # mvrnorm()
+library(VGAM) # pbinorm()
+library(ggplot2) # ggplot()
+library(tidyr) # gather()
+```
+
+
+# Illustrate properties of bivariate normal using randomly generated data
+
+```{r}
+# Suppose X and Y have a bivariate normal distribution with parameter values: 
+
+mean_X <- 0 # mean of X 
+mean_Y <- 0 # mean of Y 
+
+sd_X <- 1 # standard deviation of X 
+sd_Y <- 1 # standard deviation of X 
+
+cor_XY <- 0.5 # correlation of X and Y 
+
+mu <- c(mean_X,mean_Y) # vector of means
+cov_XY <- sd_X*sd_Y*cor_XY # rearranging the correlation formula
+sigma <- matrix(c(sd_X^2, cov_XY, cov_XY, sd_Y^2), nrow = 2) # variance-covariance matrix
+```
+
+In the code that follows we perform the following sub-tasks:  
+
+1. Generate 5000 random observations on a bivariate normal 
+2. Calculate the sample statistics 
+3. Produce a scatterplot of the sample data 
+4. Produce the histograms for the individual X and Y variables 
+5. Calculate a sample proportion of P(X < -0.5 and Y < 0.7). 
+
+\newpage
+# Sub-task 1: Generate 5000 random observations on (X, Y) 
+
+```{r}
+random_number <- 234 # this can be any number
+set.seed(random_number)
+
+n <- 5000 # number of simulated values 
+r_data <- mvrnorm(n, mu, sigma) 
+colnames(r_data) <- c("X", "Y") 
+ 
+head(r_data,10) # look at first 10 sampled values
+```
+
+
+# Sub-task 2: Calculate the sample statistics
+
+```{r}
+colMeans(r_data) # produces sample means 
+
+var(r_data) # produces sample variance-covariance matrix 
+
+cor(r_data) # produces sample correlation matrix 
+```
+
+\newpage
+# Sub-task 3: Produce a scatterplot of the sample data 
+
+```{r fig.width = 7, fig.height = 4}
+r_data_df <- as.data.frame(r_data)
+ggplot(r_data_df, aes(x=X, y=Y)) + geom_point()
+```
+
+# Sub-task 4: X and Y both exhibit characteristics of standard normal distributions 
+
+```{r fig.width = 7, fig.height = 4}
+
+r_data_df <- gather(r_data_df,"key","value","X", "Y")
+
+ggplot(r_data_df, aes(x=value)) + 
+  geom_histogram(bins = 40, color = "white", fill = "steelblue") + 
+  facet_grid(key ~ .) + 
+  labs(x = '', y= 'Frequency', title = 'Histogram of simulated normal data')
+```
+
+# Sub-task 5: Calculate a sample proportion of P(X $\leq$ -0.5 and Y $\leq$ 0.7) 
+
+```{r}
+prob <- pbinorm(0.5, 0.5, mean_X, mean_Y, sd_X^2, sd_Y^2, cov_XY) 
+round(prob,3)
+
+propn <- sum(r_data[,1] < -0.5 & r_data[,2] < 0.7)/n
+round(propn,3)
+```

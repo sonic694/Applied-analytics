@@ -1,0 +1,292 @@
+---
+title: "Week 2, Part 2 Practice Questions - Solutions"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+### Libraries
+```{r}
+library(dplyr) # for %>% pipelines
+```
+
+### Question 1
+The risk of someone experiencing an anxiety disorder during a given 12-month period is approximately 1 in 8 for males and 1 in 10 for females. Suppose a researcher plans to take a random sample of males and females and monitor their anxiety over 12 months. Which distribution is most suitable for this and why?
+
+Answer: 
+The binomial distribution is the most appropriate distribution for this question. There are two possibilities for each subject - they will either experience an anxiety disorder, or they won't. We can label experiencing an anxiety disorder in a twelve month period to be a "success" and each person in the study to be a single Bernoulli trial. 
+
+The difficulty in this question comes in the reference to a time period of 12 months. This this creates the illusion that the question is referring to the Poisson distribution, which deals with the number of events that occur in a given time period. 
+
+In this case, however, the number of participants in the study is fixed. With the Poisson distribution, there is no limit theoretical limit to the number of successes that could occur. The researcher in this question knows in advance the maximum possible number of people who could experience an anxiety disorder... it's the number of people in the study, which is known to the researcher. 
+
+A similar question that would use the Poisson distribution might be: "At a local GP clinic in a typical 12-month period, 27 males attend due to an anxiety disorder. What is the probability that in the next twelve months, 35 males attend the clinic due to an anxiety disorder?" Note the subtle difference - in Question 1, we are given the probability that a single male will experience an anxiety disorder but in this question, we're being told about the time period: how many show up in a typical time period. 
+
+For future questions, we can use the following probabilities, given above:
+
+``` {r}
+p_male <- 1/8    # or simply, 0.125 
+p_female <- 1/10 # or simply, 0.1 
+```
+
+
+### Question 2
+Suppose 70 females are randomly sampled to participate in a clinical trial. The university requires any research project involving anxiety is automatically reviewed if all participants experience an anxiety disorder in a year.
+
+What is the probability that exactly 17 will experience an anxiety disorder in a given year? (Round to 3 decimal places)
+
+Answer: 
+We are given the following constant in the preamble to Question 1. If we were given it here, instead, we could assign it a value here: 
+
+``` {r}
+p_female <- 0.1 
+```
+
+This question also provides the following constants: 
+
+The total number of female subjects 
+
+```{r}
+n <- 70 
+```
+
+The number of "successes" (the number of interest to us)
+
+``` {r}
+k <- 17 
+```
+
+The answer is then given by: 
+
+``` {r}
+ans2_1 <- dbinom(x = k, size = n, prob = p_female)
+ans2_1 # output the answer 
+
+# We are asked to round to three decimal places: 
+round(ans2_1, digits = 3)
+```
+
+Alternative solution: 
+
+We can calculate the probability of the number of female subjects experiencing an anxiety disorder being less than or equal to 17, and subtract the probability of there being less than or equal to 16 experiencing an anxiety disorder (because we want to know the probability of being exactly 17): 
+
+```{r}
+ans2_2a <- pbinom(k, n, p_female, lower.tail = TRUE)  
+ans2_2b <- pbinom(k - 1, n, p_female, lower.tail = TRUE) 
+
+ans2_2 <- ans2_2a - ans2_2b 
+```
+
+Another alternative solution:  
+We can hand calculate the previous alternative solution: 
+
+$$ {n \choose x} \times p^x \times (1-p)^{1-x} $$
+
+This is the number of ways to pick this number of successes from this number in the sample, times the probability of success to the power of the number of successes, times the probability of failure to the power of the number of failures. In R, we use: 
+
+``` {r}
+ans2_3 <- choose(n, k) * (p_female ^ k) * ((1-p_female) ^ (n - k))
+```
+
+Are they the same? 
+
+``` {r}
+ans2_1
+ans2_2
+ans2_3
+
+```
+
+Yes, they're all the same (but realistically, solution #1 is probably the easiest and quickest). 
+
+### Question 3 
+(a) The risk of someone experiencing an anxiety disorder during a given 12-month period is approximately 1 in 8 for males and 1 in 10 for females. Give each probability to the nearest 3 decimal places.
+
+Answer: 
+
+``` {r} 
+# Constants given in the question: 
+
+# The probability of "success" for males and females (success being experiencing 
+# an anxiety disorder)
+p_male <- 1/8 
+p_female <- 1/10 
+
+# The number of males and number of females in the study 
+n_male <- 25 
+n_female <- 36 
+
+# The number of males and number of females who have a "success" (success being 
+# defined as experiencing an anxiety disorder)
+k_male <- 5 
+k_female <- 8 
+```
+
+We can therefore calculate the probability for males: 
+
+``` {r} 
+round(p_male, digits = 3)
+``` 
+
+We can also calculate the probability for females: 
+
+```{r} 
+round(p_female, digits = 3)
+``` 
+
+(b) When 25 males and 36 females are randomly sampled, what is the probability that exactly 5 males and 8 females will experience an anxiety disorder in a given year? (Round your answer to 3 decimal places)
+
+Answer:
+
+``` {r}
+# Probability of 5 males, of the 25 in the sample, experiencing an anxiety disorder
+p_k_male <- dbinom(k_male, n_male, p_male)
+
+# Probability of 8 females, of the 36 in the sample, experiencing an anxiety disorder
+p_k_female <- dbinom(k_female, n_female, p_female)
+
+# Joint probability of these two events BOTH occurring 
+# (first event = 5 males, second event = 8 females) 
+ans3 <- p_k_male * p_k_female 
+round(ans3, digits = 3)
+```
+
+We can calculate all in one line: 
+``` {r}
+(dbinom(k_male, n_male, p_male) * dbinom(k_female, n_female, p_female)) %>% round(digits = 3) 
+# Note, we need brackets around the calculation, otherwise R will multiply the 
+# male probability by the rounded female probability. 
+
+# Compare with: 
+# dbinom(k_male, n_male, p_male) * dbinom(k_female, n_female, p_female)
+# Notice that not including the brackets around the multiplication 
+# resulted in an incorrect answer.   
+``` 
+
+Without a pipe, we can still do it in one line: 
+
+``` {r}
+round(dbinom(k_male, n_male, p_male) * dbinom(k_female, n_female, p_female), 
+      digits = 3)
+``` 
+
+### Question 4 
+
+You are a journalist writing about shark attacks and wanting to bring evidence and reason into the public discussion. Suppose the average number of people that become victim to a shark attack worldwide each year is 83.
+
+Why is a Poisson distribution most suitable to model the annual expected number of shark attacks?
+
+Answer: 
+Poisson distribution is used to model the rate of occurrence of an event.
+
+We have been given an existing average rate that occurs each year, rather than the probability of "success" (shark attack) occurring for an individual in the sample. As this question relates to count data over a time period, the Poisson distribution is appropriate. There is also no known maximum (we don't have the number of Bernoulli trials - the number in the sample). 
+
+*Note: The Poisson Distribution is named after the French mathematician Siméon Denis Poisson, and therefore "Poisson" should be spelt with a capital "P"* 
+
+
+### Question 5
+You are a journalist writing about shark attacks and wanting to bring evidence and reason into the public discussion. Suppose the average number of people that become victim to a shark attack worldwide each year is 83.
+
+``` {r} 
+# Constant for question 5 
+lambda <- 83 
+``` 
+
+(a) What is the expected number of shark attacks over a two-year period? (Round your answer to 3 decimal places)
+
+One of the helpful aspects of the Poisson distribution is that it scales. To find the number in a two-year period, we multiply the number for a one-year period by two, hence: 
+
+``` {r}
+ans5_a <- lambda * 2 
+ans5_a 
+``` 
+
+(b) What is the probability that exactly 83 people will be attacked by sharks in a given year? (Round your answer to 3 decimal places)
+
+``` {r}
+# The specified number of shark attacks that interest us: 
+specified <- 83 
+
+# Apply the Poisson distribution: 
+ans5_b <- dpois(specified, lambda = lambda)
+round(ans5_b, digits = 3)
+``` 
+
+
+### Question 6 
+Using a thermal camera and artificial intelligence you have determined that the body temps for animals in urban environments (i.e. humans, cats, dogs, pigeons, rats, possums, etc) is normally distributed with a mean of 37.04 and a standard deviation of 0.28.
+
+You're creating a new technology that detects sick animals by measuring elevated body temp (fever). Assume that body temperatures are normally distributed with a mean of 37.04 and a standard deviation of 0.28.
+
+You test the machine on a person you know to have a fever. Their body temperature is 37.25. Calculate their z-score so you can use this information to write software to help detect others with fevers. (Round your answer to 3 decimal places)
+
+``` {r} 
+# Population Parameters:  
+mu <- 37.04 # Population Mean
+sd <- 0.28  # Population Standard Deviation 
+
+# Observed value: 
+x <- 37.25 
+
+# The z-score is then given by (x - mu) divided by the standard deviation 
+ans6 <- (x - mu) / sd 
+round(ans6, digits = 3) 
+``` 
+
+
+### Question 7 
+Using a thermal camera and artificial intelligence you have determined that the body temps for animals in urban environments (i.e. humans, cats, dogs, pigeons, rats, possums, etc) is normally distributed with a mean of 37.04 and a standard deviation of 0.28.
+
+You're creating a new technology that detects sick animals by measuring elevated body temp (fever). Assume that body temperatures are normally distributed with a mean of 37.04 and a standard deviation of 0.28.
+
+(a) A person's z-score is found to be -0.5. Calculate their body temperature.
+
+``` {r} 
+# Population Parameters: 
+mu <- 37.04
+sd <- 0.28 
+
+# Observed value: 
+z <- -0.5 
+
+# To solve this, we re-arrange the z-score equation: 
+ans7_a <- mu + (z * sd) 
+round(ans7_a, digits = 3) 
+
+``` 
+
+
+(b) What is the probability that a person's body temperature is above 37.19? (Round your answer to 3 decimal places
+
+``` {r} 
+# Population Parameters: 
+mu <- 37.04
+sd <- 0.28 
+
+# Observed value: 
+x <- 37.19
+
+# Apply the normal distribution
+# Because we're interested in the temperature being above a specified value, we 
+# want the upper tail, so we need to use lower.tail = FALSE 
+ans7_b_1 <- pnorm(x, mu, sd, lower.tail = FALSE) 
+round(ans7_b_1, digits = 3)
+
+# Alternative solution: 
+# We can also calculate the z-score and use the normal distribution to calculate 
+# the probability. Again, because we're interested in the upper tail, we need to 
+# subtract the value from 1. 
+z <- (x - mu) / sd 
+ans7_b_2 <- 1 - pnorm(z) 
+
+
+# Do the two solutions give the same result? 
+ans7_b_1
+ans7_b_2
+
+# Yes, the two solutions are equivalent
+``` 

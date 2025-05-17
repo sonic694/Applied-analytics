@@ -1,0 +1,447 @@
+---
+title: "Week 2, Part 1 Practice Questions - Solution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+### Libraries
+```{r}
+library(dplyr) # for %>% pipelines
+library(tidyr)
+library(knitr) # for kable()
+library(stringr)
+```
+
+
+Table 1 presents hypothetical numbers of persons relating to Australian's levels of exercise. The values are in 100,000s (for example, 56.63 represents 5,663,000). 
+
+``` {r table01}
+table01 <- data.frame(gender = factor(rep(c("Males", "Females", "Persons"), each = 4)), 
+                      level = factor(rep(c("Sedentary", "Low", "Moderate", "High")), 
+                                     levels = c("Sedentary", "Low", "Moderate", "High"), 
+                                     ordered = TRUE), 
+                      age_15_17   = c( 56.63, 111.75,  116.90,  153.58, 123.11, 145.37, 
+                                       98.49,  56.96,  179.74,  257.12, 215.39, 210.54), 
+                      age_18_24   = c(322.86, 222.24,  320.17,  313.97, 319.50, 366.29, 
+                                      224.69, 110.97,  642.36,  588.53, 544.86, 424.94), 
+                      age_25_34   = c(439.65, 484.01,  410.80,  365.59, 595.41, 583.53, 
+                                      297.89, 112.91, 1035.06, 1067.54, 708.69, 478.5), 
+                      age_35_44   = c(551.7,  464.40,  299.69,  191.75, 530.36, 578.58, 
+                                      372.56, 152.07, 1082.06, 1042.98, 672.25, 343.82), 
+                      age_45_54   = c(533.04, 470.97,  243.39,  186.63, 556.01, 514.06, 
+                                      349.15, 166.53, 1089.05,  985.03, 592.54, 353.16), 
+                      age_55_64   = c(472.03, 365.78,  340.33,  113.93, 453.63, 463.53, 
+                                      283.78,  88.42,  925.66,  829.31, 624.11, 202.35), 
+                      age_65_74   = c(316.83, 272.12,      NA,      NA, 367.23, 242.44, 
+                                          NA,     NA,  684.06,  514.56,     NA,     NA), 
+                      age_75_over = c(244.49, 138.44,      NA,      NA, 512.74, 153.69, 
+                                          NA,     NA,  757.23,  292.13,     NA,     NA)) 
+
+table01$total <- rowSums(table01[ , 3:10], na.rm = TRUE) 
+clean_colnames = c('Gender','Level','15-17','18-24','25-34','35-44','45-54',
+                   '55-64','65-74','75+','Total')
+knitr::kable(table01, col.names = clean_colnames)
+``` 
+
+Use this table to answer the following questions. 
+
+``` {r}
+table01_long <- table01 %>% 
+  filter(gender %in% c("Males", "Females")) %>% 
+  select(-total) %>% 
+  pivot_longer(cols = 3:10, names_to = "age_group", values_to = "population") %>% 
+  mutate(age_group = str_remove_all(age_group, "age_"))
+``` 
+
+### Question 1 
+
+The data in Table 1 suggests gender is mutually exclusive. True or false?
+
+Answer: TRUE, as males and females sums to total persons in the dataset. 
+
+### Question 2
+
+Substitute with the correct statement
+
+$$A \cup B$$ 
+
+Answer: This is "A union B" and represents "A **OR** B"
+
+$$A | B$$ 
+
+Answer: This is "A given B" and represents A happening if we know that B has already happened or is already (or assumed to be) true. 
+
+$$A'$$ 
+
+Answer: This is "A prime" or "Complement of A" and represents "**NOT** A"
+
+$$A \cap B$$ 
+
+Answer: This is "A intersect B" and represents "A **AND** B"
+
+### Question 3
+
+(a) What is the probability of an Australian being sedentary? (Round answer to 3 decimal places)
+
+``` {r p_sed}
+n_sedentary <- 6395.22
+
+# Alternative approach: 
+n_sedentary <- table01 %>% 
+  filter(gender == "Persons" & level == "Sedentary") %>% 
+  pull(total)
+
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31)
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum() 
+
+## Note: The alternative approach is a bit more onerous for this table, but can 
+##       save time if there were more than just these four levels. 
+
+p_sed <- n_sedentary / total_pop
+p_sed
+round(p_sed, digits = 3)
+``` 
+
+(b) According to Table 1, what is the probability of being male? (Round answer to 3 decimal places)
+
+``` {r p_male}
+n_male <- 2937.23 + 2529.71 + 1731.28 + 1325.45
+
+# Alternative approach: 
+n_male <- table01 %>% 
+  filter(gender == "Males") %>% 
+  pull(total) %>% 
+  sum() 
+
+# We've already calculated this in part A, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31) 
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+p_male <- n_male / total_pop 
+p_male 
+round(p_male, digits = 3)
+```
+
+(c) According to Table 1, what is the probability of being female? (Round answer to 3 decimal places)
+
+``` {r p_female1}
+# Note, because we have previously determined male and female to be mutually exclusive, 
+# we can alternatively use: 
+
+1 - p_male
+round(1 - p_male, digits = 3)
+``` 
+
+
+``` {r p_female2}
+# If we weren't able to calculate this value simply due to mutual exclusivity 
+# and prior calculations: 
+
+n_female <- 3457.99 + 3047.49 + 1626.56 + 687.86 
+# OR: sum(3457.99, 3047.49, 1626.56, 687.86) 
+
+# Alternative approach: 
+n_female <- table01 %>% 
+  filter(gender == "Females") %>% 
+  pull(total) %>% 
+  sum()
+
+# We've already calculated this in part A, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31) 
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+p_female <- n_female / total_pop 
+p_female 
+round(p_female, digits = 3)
+```
+
+### Question 4 
+
+In the previous question, you calculated the probability of being female and sedentary. Determine if being sedentary is independent of being female. Show your working and briefly explain your reasoning.
+
+We have previously determined from the dataset that male and female are mutually exclusive. Since this is the case, if being sedentary is independent of being female: 
+
+$$P(Sedentary \space \cap \space Female) = P(Sedentary) \times P(Female)$$
+
+In the dataset, we note that: 
+
+``` {r}
+n_female <- 3457.99 + 3047.49 + 1626.56 + 687.86 
+# OR: sum(3457.99, 3047.49, 1626.56, 687.86) 
+
+# Alternative approach: 
+n_female <- table01 %>% 
+  filter(gender == "Females") %>% 
+  pull(total) %>% 
+  sum()
+
+n_sedentary <- 6395.22 
+# Alternative approach: 
+n_sedentary <- table01 %>% 
+  filter(gender == "Persons" & level == "Sedentary") %>% 
+  pull(total) 
+
+n_sed_female <- 3457.99 
+# Alternative approach: 
+n_sed_female <- table01 %>% 
+  filter(gender == "Females" & level == "Sedentary") %>% 
+  pull(total)
+
+# We've already calculated this in part A, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31) 
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+
+p_female <- n_female / total_pop 
+p_sedentary <- n_sedentary / total_pop 
+
+p_sed_fem1 <- n_sed_female / total_pop
+p_sed_fem2 <- p_female * p_sedentary 
+
+p_sed_fem1
+p_sed_fem2
+``` 
+
+Because these two values are not equal, being sedentary is not independent to being female. 
+
+### Question 5 
+Use Table 1 to answer the following question:
+
+(a) What is the probability of being male, aged 25 - 34 and high in exercise level? (Round answer to 3 decimal places)
+
+``` {r}
+n_male_25_34_high <- 365.59
+
+# Alternative approach: 
+n_male_25_34_high <- table01 %>% 
+  filter(gender == "Males" & level == "High") %>% 
+  pull(age_25_34)
+
+# We've already calculated this, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31)
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+p_male_25_34_high <- n_male_25_34_high / total_pop 
+round(p_male_25_34_high, digits = 3) 
+``` 
+
+(b) What is the probability of being female, aged 25 - 34 and high in exercise level? (Round answer to 3 decimal places)
+
+``` {r} 
+n_female_25_34_high <- 112.91
+
+# Alternative approach: 
+n_female_25_34_high <- table01 %>% 
+  filter(gender == "Females" & level == "High") %>% 
+  pull(age_25_34)
+
+# We've already calculated this, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31)
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+p_female_25_34_high <- n_female_25_34_high / total_pop 
+round(p_female_25_34_high, digits = 3) 
+```
+
+(c) What is the probability of being aged between 35-44? (Round answer to 3 decimal places)
+
+``` {r} 
+n_35_44 <- 1082.06 + 1042.98 + 672.25 + 343.82
+# Alternative approach: 
+n_35_44 <- table01 %>% 
+  filter(gender %in% c("Males", "Females")) %>% 
+  # Or could filter to gender == "Persons" 
+  pull(age_35_44) %>% 
+  sum() 
+
+# We've already calculated this, but doing it again here 
+total_pop <- 6395.22 + 5577.2 + 3357.84 + 2013.31 
+# OR: sum(6395.22, 5577.2, 3357.84, 2013.31) 
+
+# Alternative approach: 
+total_pop <- table01 %>% 
+  filter(gender == "Persons") %>% 
+  pull(total) %>% 
+  sum()
+
+p_35_44 <- n_35_44 / total_pop
+round(p_35_44, digits = 3)
+``` 
+
+
+### Question 6 
+Use Table 1 to answer the following question:
+
+(a) What is the probability of having a high level of exercise given that a person is male? (Round answer to 3 decimal places)
+
+``` {r}
+n_male_high <- 1325.45
+
+# Alternative approach: 
+n_male_high <- table01 %>% 
+  filter(gender == "Males" & level == "High") %>% 
+  pull(total) %>% 
+  sum() 
+
+# We've already calculated this, but doing it again here 
+n_male <- 2937.23 + 2529.71 + 1731.28 + 1325.45
+
+# Alternative approach: 
+n_male <- table01 %>% 
+  filter(gender == "Males") %>% 
+  pull(total) %>% 
+  sum() 
+
+p_high_giv_male <- n_male_high / n_male 
+round(p_high_giv_male, digits = 3)
+
+## Why are we using total males as the base? 
+## Because "given" tells us that we already know that the person is male. 
+```
+
+(b) What is the probability of having a high level of exercise given that a person is female? (Round answer to 3 decimal places)
+
+``` {r}
+n_female_high <- 687.86 
+# Alternative approach: 
+n_female_high <- table01 %>% 
+  filter(gender == "Females" & level == "High") %>% 
+  pull(total) %>% 
+  sum() 
+
+# We've already calculated this, but doing it again here 
+n_female <- 3457.99 + 3047.49 + 1626.56 + 687.86 
+# OR: sum(3457.99, 3047.49, 1626.56, 687.86) 
+
+# Alternative approach: 
+n_female <- table01 %>% 
+  filter(gender == "Females") %>% 
+  pull(total) %>% 
+  sum()
+
+p_high_giv_female <- n_female_high / n_female
+round(p_high_giv_female, digits = 3)
+```
+
+### Question 7
+
+(a) What is the probability that a person is sedentary given they are aged 45 years or above? (Round answer to 3 decimal places)
+
+``` {r}
+n_sed_45_over <- 1089.05 + 925.66 + 684.06 + 757.23
+
+# Alternative approach: 
+n_sed_45_over <- table01_long %>% 
+  filter(level == "Sedentary" & 
+         age_group %in% c("45_54", "55_64", "65_74", "75_over")) %>% 
+  pull(population) %>% 
+  sum() 
+
+n_45_over <- 1089.05 + 925.66 + 684.06 + 757.23	+ 985.03 + 829.31 + 514.56 + 
+  292.13 + 595.54 + 624.11 + 353.16 + 202.35 
+# Alternative approach: 
+n_45_over <- table01_long %>% 
+  filter(age_group %in% c("45_54", "55_64", "65_74", "75_over")) %>% 
+  pull(population) %>% 
+  sum(na.rm = TRUE) # Missing values are present and sum of missing is missing 
+
+p_sed_giv_45_over <- n_sed_45_over / n_45_over 
+round(p_sed_giv_45_over, digits = 3) 
+
+## With so many numbers to sum, the risk of making a typo is becoming high. 
+## Alternative approach is probably better. 
+``` 
+
+(b) What is the probability that a person is sedentary given they are aged under 45 years? (Round answer to 3 decimal places)
+
+``` {r}
+n_sed_44_under <- 179.74 + 642.36 + 1035.06 + 1082.06
+
+# Alternative approach: 
+n_sed_44_under <- table01_long %>% 
+  filter(level == "Sedentary" & 
+          age_group %in% c("15_17", "18_24", "25_34", "35_44")) %>% 
+  pull(population) %>% 
+  sum() 
+
+n_44_under <- 179.74 + 642.36 + 1035.06 + 1082.06	+ 257.12 + 588.53 + 
+  1067.54 + 1042.98 + 215.39 + 544.86 + 708.69 + 672.25 + 210.54 + 
+  424.94 + 478.5 + 343.82
+
+# Alternative approach: 
+n_44_under <- table01_long %>% 
+  filter(age_group %in% c("15_17", "18_24", "25_34", "35_44")) %>% 
+  pull(population) %>% 
+  sum()
+
+p_sed_giv_44_under <- n_sed_44_under / n_44_under 
+round(p_sed_giv_44_under, digits = 3) 
+``` 
+
+
+### Question 8 
+
+Compare the two conditional probabilities calculated in the previous question. How much more or less sedentary are people over the age of 45 compared to people under the age of 45? (Round answer to 3 decimal places)
+
+``` {r}
+ratio <- p_sed_giv_45_over / p_sed_giv_44_under 
+round(ratio, digits = 3)
+``` 
+
+People aged 45 and over are `r round(ratio, digits = 3)` times more likely to be sedentary as people aged 44 and under. 
+
+### Question 9 
+Use Table 1 to answer the following question:
+
+What is the probability that a person is NOT sedentary given they are aged 45 years or above? (Round answer to 3 decimal places)
+
+``` {r}
+# Sedentary and NOT sedentary are mutually exclusive, hence: 
+p_not_sed_giv_45_over <- 1 - (n_sed_45_over / n_45_over)
+
+# Which is the same as: 
+p_not_sed_giv_45_over <- 1 - (p_sed_giv_45_over) 
+
+round(p_not_sed_giv_45_over, digits = 3)
+``` 
