@@ -1,0 +1,140 @@
+---
+title: "MATH2406 Applied Analytics"
+author: "Student name and number comes here"
+subtitle: 'Assessment 1: Report'
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+**DELETE the instructional text provided in this template.** 
+
+If you have any questions regarding the assignment instructions or the R Markdown template, please post them on the discussion board.
+
+
+## **Setup**
+
+Install and load the packages you need to produce the report here:
+
+```{r, echo = TRUE, warnings = FALSE}
+
+# This is a chunk where you can load the packages required for producing the report 
+
+# Here are some example packages. You may add others if required  
+
+
+library(dplyr) # Useful for data manipulation
+library(ggplot2) # Useful for building data visualisations
+library(knitr) # Useful for creating nice tables
+
+```
+
+
+
+## **Instructions** 
+
+Follow the instructions given in the Assessment brief to fill out the template below. Remember to include R codes and outputs, and where applicable plain text explanations.
+
+
+## **Task 1**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+## **Task 2**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+## **Task 3**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+## **Task 4**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+## **Task 5**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+## **Task 6**
+
+Write your plain text here. 
+
+```{r}
+
+# Provide your R code here
+
+
+```
+
+
+### **IMPORTANT NOTE** 
+
+The report must be uploaded to Assignment 1 section in Canvas as a **PDF** document with R codes and outputs showing. The easiest way to do this is to:
+<br>
+1) Run all R chunks
+<br>
+2) **Preview** your notebook in **HTML** (by clicking Preview Notebook)
+<br>
+3) **Open in Browser (Chrome)**
+<br>
+4) **Right Click on the report in Chrome**
+<br>
+5)  **Click Print** and Select the Destination Option to **Save as PDF**. 
+<br>
+6) Now upload this PDF report as one single file via the Assignment 1 page in Canvas.
+<br>
+<br>
+**Remember to DELETE the instructional text provided in the template. Failure to do this will INCREASE the SIMILARITY INDEX reported in TURNITIN** 
+<br>
+
+If you have any questions regarding the assignment instructions or the R Markdown template, please post them on the discussion board. 
+
+<br>
