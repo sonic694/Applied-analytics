@@ -1,0 +1,73 @@
+---
+title: "4.4.1 Example 1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Libraries
+```{r}
+library(dplyr) # for summarise()
+```
+
+## Problem
+
+A market research study was conducted on customer satisfaction with their main bank. Customers of ANZ and NAB banks were asked how satisfied they are with their main bank for personal banking services. Responses are given on a 0-10 scale, where 0 means 'not at all satisfied' and 10 means 'extremely satisfied'. Using a 5% significance level, test the hypothesis that there is no difference between the mean satisfaction levels of the two banks.  
+
+## Two-sample test
+
+First let's state the statistical hypotheses given the above information.
+
+$$H_{0} : \mu_{_{NAB}} = \mu_{_{ANZ}}$$
+
+$$H_{A} : \mu_{_{NAB}} \ne \mu_{_{ANZ}}$$
+
+We will explore the data to determine whether the sample size for both groups is large enough to assume normality.
+
+```{r}
+# load the data set
+bank_df <- read.csv("Bank_satisfaction.csv") # make sure to set your work directory accordingly
+head(bank_df)
+```
+
+```{r}
+# calculate means and sd's, and check how large each sample is
+stats_ANZ <- summarise(bank_df,
+                       mean = mean(bank_df$Sat_ANZ, na.rm=TRUE),
+                       sd = sd(bank_df$Sat_ANZ, na.rm=TRUE),
+                       n = sum(!is.na(bank_df$Sat_ANZ))) 
+stats_ANZ
+
+stats_NAB <- summarise(bank_df,
+                       mean = mean(bank_df$Sat_NAB, na.rm=TRUE), 
+                       sd = sd(bank_df$Sat_NAB,na.rm = TRUE),
+                       n = sum(!is.na(bank_df$Sat_NAB))) 
+stats_NAB
+```
+
+
+## Two-sample z-test
+
+Since the population standard deviations are known and the sample sizes for both groups are large, 40 and 32 respectively, a z-test is conducted. To perform a z-test we will need to calculate the z-statistic for the sample mean difference.
+
+```{r}
+# assume null hyp. is true, i.e. no difference in population means
+
+# calculate the z-statistic 
+z_stat <- (stats_ANZ$mean - stats_NAB$mean) /  
+           sqrt(stats_ANZ$sd^2 / stats_ANZ$n + stats_NAB$sd^2 / stats_NAB$n)
+round(z_stat,3)
+```
+
+```{r}
+p_value <- 2*pnorm(abs(z_stat),0,1, lower.tail = FALSE)
+round(p_value,3)
+```
+
+## Interpretation
+
+Since p-value (0.043) < significance level (0.05) you reject the hypothesis of equal means and conclude that NAB's satisfaction score ($\mu_{_{NAB}}$ = 8.156) is significantly greater than that of ANZ ($\mu_{_{ANZ}}$ = 7.225). 

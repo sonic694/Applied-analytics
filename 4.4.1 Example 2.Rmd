@@ -1,0 +1,122 @@
+---
+title: "4.4.1 Example 2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Libraries
+```{r}
+library(ggplot2) # for ggplot()
+library(dplyr) # for summarise()
+library(tidyr) # for pivot_wider()
+```
+
+## Problem
+
+In this example you will consider the R built-in dataset called Sleep. The data show the increase in hours of sleep of two sleep inducing drugs on 10 patients. Because we are only interested in the difference, we don't need to know the base level of sleep, only the increase (positive or negative) on that base level.
+
+## Two-sample test
+
+First let's state the statistical hypotheses given the above information. $\mu_{\Delta}$ denotes the mean difference of the effect of the two sleep inducing drugs.
+
+$$H_{0} : \mu_{\Delta} = 0$$
+
+$$H_{A} : \mu_{\Delta} \ne 0$$
+
+As the drugs are administered to the same sample of subjects, we can perform a paired two sample test. A paired sample t-test requires us to check two assumptions: (1) dependent samples and (2) normality. We will explore the data to determine if our samples are dependent and normally distributed.
+
+```{r}
+df <- sleep 
+dat <- pivot_wider(df, names_from = group, names_prefix = "extra_", 
+                   values_from = extra) 
+
+head(dat)
+```
+
+
+Consider the scatter plot and correlation between the two variables.
+
+```{r fig.width = 7, fig.height = 4}
+ggplot(dat, aes(x=extra_1, y=extra_2)) + geom_point()+ 
+  geom_text(aes(label=ID), hjust = -0.5) 
+
+cor(dat$extra_1,dat$extra_2) 
+```
+
+The scatter plot shows that the amount of extra sleep is strongly correlated (0.795) for the two drugs. Hence these are dependent samples. To assume normality, let's first check the size of the sample.
+
+```{r}
+# calculate means and sd's, and check how large each sample is
+dat$dat_diff <- dat$extra_1 - dat$extra_2 
+
+stats_diff <- summarise(dat,
+                       mean = mean(dat$dat_diff, na.rm=TRUE),
+                       sd = sd(dat$dat_diff, na.rm=TRUE),
+                       n = sum(!is.na(dat$dat_diff)))
+
+stats_diff
+```
+
+
+The sample size is too small (n <=30). Hence we check to see whether the sample data exhibits a normal distribution using a histogram.
+
+
+## Check the assumption of normality using histograms
+
+```{r fig.width = 7, fig.height = 4}
+# Plot histogram to see if you can reasonably assume normality 
+ggplot() +
+  geom_histogram(aes(dat$extra_1), 
+                 bins = 5, color = 'white', fill = 'steelblue') +
+  labs(x = "x", y = 'Frequency', 
+       title = "Histogram of the effect of drug 1 (in hours of sleep)") 
+
+ggplot() +
+  geom_histogram(aes(dat$extra_2), 
+                 bins = 5, color = 'white', fill = 'red3') +
+  labs(x = "x", y = 'Frequency', 
+       title = "Histogram of the effect of drug 2 (in hours of sleep)") 
+```
+
+Sample size of 10 is too small to see any pattern in the histograms. We will try using a normal Q-Q plot to see if that supports normality.
+
+```{r fig.width = 7, fig.height = 4}
+qqnorm(dat$extra_1, main = "QQ plot (Drug 1)") 
+qqnorm(dat$extra_2, main = "QQ plot (Drug 2)") 
+```
+
+Normal Q-Q plots aren't revealing either way, therefore we apply the Shapiro-Wilk's normality test. 
+
+## Check the assumption of normality using the Shapiro-Wilk's test 
+
+The null hypothesis of this test is that the data is normally distributed. The alternative is that the data has a non-normal distribution. If the p-value < 0.05 then reject normality. Otherwise do not reject if the p-value > 0.05.
+
+```{r}
+p_val_1 <- shapiro.test(dat$extra_1)  
+p_val_2 <- shapiro.test(dat$extra_2) 
+
+# print the p-values
+cat(paste('p-value for testing normality (Drug 1) = ', p_val_1$p.value))
+cat(paste('p-value for testing normality (Drug 2) = ', p_val_2$p.value))
+
+# Both p-values > 0.05, so do not reject normality assumption. 
+```
+
+\newpage
+## Paired two-sample t-test
+
+Now that we can meet the assumptions of dependent samples and normality, we can perform a paired two-sample t-test.
+
+```{r}
+t.test(dat$extra_1,dat$extra_2, paired = TRUE)
+
+# same as t.test(dat$dat_diff) 
+```
+
+## Interpretation
+Since p-value (0.003) < significance level (0.5) you reject the hypothesis of equal means and conclude that drug 2 produces a longer sleep on average.

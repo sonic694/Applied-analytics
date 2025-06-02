@@ -1,0 +1,171 @@
+---
+title: "4.4.1 Two sample t-test - Test yourself (solution)"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Libraries
+```{r}
+library(ggplot2) # for ggplot()
+library(dplyr) # for summarise()
+```
+
+## Problem
+
+Consider the data for rare metal concentrations found at two different locations. At each location numerous core samples were recovered from multiple drill sites and the metals were extracted and weighed. We wish to know if the two locations differ in terms of their resource extraction potential, at a 5% significance level. 
+
+## Two-sample test
+
+First let's state the statistical hypotheses given the above information.
+
+$$H_{0} : \mu_{_{Location1}} = \mu_{_{Location2}}$$
+
+In other words, the concentration of rare metal is the same at both locations.  
+
+$$H_{A} : \mu_{_{Location1}} \ne \mu_{_{Location2}}$$
+
+In other words, the concentration of rare metal is different at the two locations.  
+
+
+We should always formulate our hypotheses BEFORE seeing the data. If we have no reason to believe that the first mean should be less than the second mean, then the alternative hypothesis should not make that assumption, just because we've seen the data! If a geologist report said that they expected site 2 to have a higher concentration, then it would be appropriate to conduct a one-tailed test because the hypothesis is formulated before the data was collected.  
+
+
+We will explore the data to determine whether the sample size for both groups is large enough to assume normality.
+
+```{r}
+# make sure to set your work directory accordingly
+raremetals_df <- read.csv("rare_metal_concentrations.csv")
+head(raremetals_df)
+```
+
+```{r}
+# calculate means and sd's, and check how large each sample is
+stats_Location1 <- summarise(raremetals_df,
+                       mean = mean(raremetals_df$Location.1, na.rm=TRUE),
+                       sd = sd(raremetals_df$Location.1, na.rm=TRUE),
+                       n = sum(!is.na(raremetals_df$Location.1))) 
+stats_Location1
+
+stats_Location2 <- summarise(raremetals_df,
+                       mean = mean(raremetals_df$Location.2, na.rm=TRUE), 
+                       sd = sd(raremetals_df$Location.2,na.rm = TRUE),
+                       n = sum(!is.na(raremetals_df$Location.2))) 
+stats_Location2
+```
+
+Population standard deviations were not provided so we must estimate it from sample data. Also the sample size for both groups is small (n <=30). Hence we require a t-test, however due to the sample size of both groups we must check to see whether each sample data exhibits a normal distribution.
+
+
+## Check the assumption of normality using histograms
+
+```{r fig.width = 7, fig.height = 4}
+# Plot histogram to see if you can reasonably assume normality 
+ggplot() +
+  geom_histogram(aes(raremetals_df$Location.1), 
+                 bins = 6, color = 'white', fill = 'steelblue') +
+  labs(x = "x", y = 'Frequency', 
+       title = "Histogram of the concentration of rare metal at Location 1") 
+
+ggplot() +
+  geom_histogram(aes(raremetals_df$Location.2), 
+                 bins = 6, color = 'white', fill = 'red3') +
+  labs(x = "x", y = 'Frequency', 
+       title = "Histogram of the concentration of rare metal at Location 2") 
+```
+
+Histogram for Location 2 is less convincing, so we will call on the Shapiro-Wilk's test.
+
+## Check the assumption of normality using the Shapiro-Wilk's test 
+
+The null hypothesis of this test is that the data is normally distributed. The alternative is that the data has a non-normal distribution. If the p-value < 0.05 then reject normality. Otherwise do not reject if the p-value > 0.05.
+
+```{r}
+p_val_1 <- shapiro.test(raremetals_df$Location.1)  
+p_val_2 <- shapiro.test(raremetals_df$Location.2) 
+
+# print the p-values
+cat(paste('p-value for testing normality of Location 1 = ', p_val_1$p.value))
+cat(paste('p-value for testing normality of Location 2 = ', p_val_2$p.value))
+
+# Both p-values > 0.05, so do not reject normality assumption. 
+```
+
+## Check the assumption of equal variances.
+
+```{r}
+ratio <- stats_Location1$sd/stats_Location2$sd
+ratio 
+
+# As the ratio belongs to the interval (-0.5, 2) we assume equal variances. 
+```
+
+## Two-sample t-test
+
+Now that we can assume normality and equal variance, we can perform a two-sample t-test.
+
+```{r}
+t.test(raremetals_df$Location.1,raremetals_df$Location.2,
+       alternative = "two.sided",  paired = FALSE, var.equal= TRUE) 
+```
+
+## Interpretation
+
+Since p-value (0.062) > significance level (0.05) you fail to reject the hypothesis of equal means and conclude that there is no significant difference between the rare metal concentrations at the two locations.
+
+
+## Two-sample t-test (Alternate way)
+
+Alternatively, you can work from first principles using the formula for the t-statistic given in Canvas.
+
+```{r}
+# Functions  
+
+two_samp_t_stat <- function(xbar1, xbar2, s_pooled, n1, n2) { 
+  out <- (xbar1 - xbar2) / (s_pooled*sqrt(1 /n1 + 1/n2)) 
+  out
+}  
+```
+
+This function calculates a t-statistic based on summary statistics from two samples, using the equation given in the module notes.  
+
+```{r}
+# Constants  
+x_bar1 <- stats_Location1$mean
+x_bar2 <- stats_Location2$mean 
+
+s_1 <- stats_Location1$sd 
+s_2 <- stats_Location2$sd
+
+n1 <- stats_Location1$n 
+n2 <- stats_Location2$n  
+
+s_pooled <- sqrt(((n1-1)*s_1^2 + (n2-1)*s_2^2)/(n1+n2-2)) 
+
+# The first sample contributes (n1 - 1) df, and the second  
+# sample contributes (n2 - 1) df, therefore the total df = n1 + n2 - 2  
+df <- n1 + n2 - 2
+cat(df)
+```
+
+
+```{r}
+# We can substitute the numbers into the equation given in the module notes:  
+t_stat <- (x_bar1 - x_bar2) / (s_pooled*sqrt(1 / n1 + 1 / n2)) 
+cat(round(t_stat,3))
+```
+
+```{r}
+# However, as this is identical to the function we created, we can also use this to output the answer: 
+t_stat <- two_samp_t_stat(x_bar1, x_bar2, s_pooled, n1, n2)  
+cat(round(t_stat,3))
+```
+
+```{r}
+p_value <- 2*pt(abs(t_stat),df, lower.tail = FALSE) # two-tailed test 
+cat(round(p_value,3))
+```

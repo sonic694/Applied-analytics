@@ -1,0 +1,86 @@
+---
+title: "4.3.3 Applying a t-test for one sample"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2) # for ggplot()
+library(dplyr) # for %>% pipelines
+```
+
+We have some diameter data (in cm) for a motorcycle brake disc manufacturer. The manufacturer claims their brake diameter is in keeping with the regulation diameter of 12 inches (30.48 cm) for this part. Conduct a two tailed test at 5% significance level to decide whether we should reject the manufacturer's claim. 
+
+## Two-tailed test
+
+First let's state the statistical hypotheses given the above information.
+
+
+$$H_{0} : \mu = 30.48$$
+
+$$H_{A} : \mu \ne 30.48$$
+
+We will explore the data to determine whether a z-test or t-test is suitable.
+
+```{r}
+# load the data set
+brakes_df <- read.csv("new_disc_brakes.csv") # make sure to set your work directory accordingly
+head(brakes_df)
+```
+
+```{r}
+# check how large sample is
+cat(paste('Length of brakes data = ', length(brakes_df$brake_diameter)))
+```
+
+Population standard deviation was not provided so we must estimate it from sample data. Also dataset is small (n <=30). Hence we require a t-test, however due to the sample size we must check to see whether our sample data exhibits a normal distribution.
+
+## Assess normality
+
+```{r}
+# Here are some sample statistics: 
+brakes_df %>% summarise(Min = min(brake_diameter, na.rm = TRUE), 
+                        Max = max(brake_diameter, na.rm = TRUE), 
+                        Mean = mean(brake_diameter, na.rm = TRUE), 
+                        SD = sd(brake_diameter, na.rm = TRUE), 
+                        n = n(), 
+                        Missing = sum(is.na(brake_diameter))) 
+```
+
+
+```{r fig.width = 7, fig.height = 4}
+# Plot histogram to see if you can reasonably assume normality 
+ggplot() +
+  geom_histogram(aes(brakes_df$brake_diameter), bins = 7, color = 'white', fill = 'steelblue') +
+  labs(x = "x", y = 'Frequency', title = "Histogram of brake disc diameter (cm)") + 
+  geom_vline(xintercept=30.48, color = "red")
+```
+Histogram shape suggests you can assume normality.
+
+\newpage
+
+## Two-tailed t-test
+
+Now that we can assume normality, we can perform a t-test.
+
+```{r}
+# Full output includes 95% confidence interval by default 
+# If you want another level of confidence, than add conf.level as argument 
+t.test(brakes_df$brake_diameter, alternative = "two.sided",mu = 30.48) 
+```
+
+```{r}
+# You can also get the p-value directly via 
+t.test(brakes_df$brake_diameter, alternative = "two.sided", mu = 30.48)$p.value 
+```
+
+## Interpretation: 
+
+Since p-value (0.017) < significance level (0.05) you reject the manufacturer's claim.
