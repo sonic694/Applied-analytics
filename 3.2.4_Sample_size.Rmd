@@ -1,0 +1,120 @@
+---
+title: "3.2.4 Sample size"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(dplyr) # for %>% pipelines
+```
+
+## Constants - We've been given these in the question 
+
+```{r}
+alpha <- 0.05 # For a 95% confidence interval, alpha is 5% 
+sigma <- 0.03 # The standard deviation of the chain of shops  
+E <- 0.01     # The expected effect size (MoE)  
+z <- qnorm(alpha / 2, lower.tail = FALSE)# The required Z-score 
+
+# Age and gender of customers  
+customers <- data.frame(gender = c("Male", "Female", "Male", "Female"),  
+                        age = c("Young", "Young", "Old", "Old"),  
+                        count = c(1200, 1350, 800, 750)) 
+```
+
+
+## Questions 
+
+#### 1. Management wishes to know the minimum number of its customers to target with the new sales method. They want a segment sample size such that they can be 95% confident that the error of estimation is no bigger than 1% in that segment. 
+
+### What is the minimum sample size? 
+
+Let's first create a function that we can use every time we want to calculate the minimum sample size given a set of parameters. We call our function $samp$_$size$().
+
+```{r}
+
+# samp_size takes $z$, $E$ and $sigma$ as arguments. 
+# The $z$ argument has a default value of 1.96, but can take other values. 
+# The second line in the function calculates the required sample size and calls it "out". 
+# In the third line, the function returns this object. If the function is just being used, 
+# it will output into the Console. If it's being used with an assignment, this value will 
+# be assigned to the object (we'll demonstrate this soon).
+
+samp_size <- function(z, E, sigma) {  
+  out <- ((z * sigma) / E)^2  
+  out 
+  } 
+```
+ 
+```{r}
+# Now we can call our function
+n <- samp_size(z, E, sigma)
+print(n)
+
+#But we can't have half a person in our sample, we should round up.  
+n <- ceiling(n) #this rounds up n to the next integer 
+print(n)
+```
+
+### 2. What is the probability of a randomly selected customer being a young male? 
+
+```{r}
+# This is easy to do my hand. There are 1200 young males out of a total of 2,000  
+# so the probability is 1200/4,100 = 0.293 or 29.3%. But this is not best practice 
+# so let's instead use R 
+
+N_young_male <- customers %>%  
+  filter(age == "Young", gender == "Male") %>%  
+  pull(count) 
+
+N_tot <- customers %>%  
+  pull(count) %>%  
+  sum() 
+
+p_young_male <- N_young_male / N_tot 
+
+p_young_male %>% round(digits = 3) 
+```
+
+### 3. Management wants to know the minimum number of people to randomly sample in each segment that will maintain the correct overall percentage relative to the other segments. This will ensure that the combined sample is representative of the total population, as well as providing information on each segment. 
+
+```{r}
+# Keeping the relative percentages of each segment, how many people need to be 
+# sampled from each segment? 
+
+# Calculate the proportions  
+customers <- customers %>%  
+  mutate(proportion = count / sum(count)) 
+
+# What is the smallest proportion?
+min_prop <- customers %>%
+  filter(proportion == min(proportion)) %>%
+  pull(proportion)
+
+# Our calculated sample size (n) is the smallest size we can have for any segment.
+# Therefore, it should be the size of the segment with the smallest proportion.
+# We can calculate the total sample (n_tot) across all segments:
+n_tot <- n / min_prop
+
+# This will ensure that we will still have n in the control group for the group
+# with the smallest proportion (N * min_prop = n)
+
+
+# We know proportions for each group, and we know the total population size. Now
+# we can calculate how many for each group, based on their proportion.
+customers <- customers %>%
+  mutate(sample = ceiling(proportion * n_tot))
+
+customers
+
+# We're using the ceiling() function again to round up sample sizes
+revised_n_tot <-sum(customers$sample)
+revised_n_tot
+```

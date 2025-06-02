@@ -1,0 +1,118 @@
+---
+title: "4.1.6: Test yourself on confidence intervals using R"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+## Libraries
+```{r}
+library(stringr) # for str_interp()
+```
+
+
+## Question 1
+
+Suppose we have a random sample of size 25, with a sample mean of 50 and sample standard deviation of 8. Derive a 95% confidence interval for the population mean.
+
+```{r}
+# Given information 
+x_bar <- 50   # sample mean 
+sd    <- 8   # sample standard deviation 
+n     <- 25  # sample size 
+conf_level <- 0.95
+
+#Calculations
+s_error <- sd/sqrt(n) # standard error
+alpha <- 1-conf_level 
+df <- n-1 # degrees of freedom
+t_value <- qt(alpha/2, df = df, lower.tail = FALSE)
+m_error <- t_value*s_error # margin of error  
+
+# Confidence limits
+LCL <- x_bar-m_error # Lower 
+UCL <- x_bar+m_error # Upper
+
+# Output 
+cat(str_interp("${conf_level*100}% CI: [${round(LCL,3)}, ${round(UCL,3)}]"))
+```
+
+## Question 2
+
+The radioactivity of a material is dependent on the mean average time it takes for an atom in the material to decay. Suppose you watch 1491 atoms and find that they have a mean decay time of 44.5s, with a 95% confidence interval width of 8.9s.
+
+(a) Write down the lower and upper 95% confidence limits for the population mean decay time.
+
+```{r}
+# Given information 
+n <- 1491 # sample size
+x_bar <- 44.5   # sample mean 
+CI_width <- 8.9
+m_error <- CI_width/2
+
+#Calculations
+LCL <- x_bar-m_error
+UCL <- x_bar+m_error
+ 
+# Output 
+cat(str_interp("${conf_level*100}% CI: [${round(LCL,3)}, ${round(UCL,3)}]"))
+```
+
+(b) Write down the lower and upper 95% confidence limits for the population mean decay time.
+
+The interval within which we are 95% confident that the parameter (in this case, the population 
+mean) lies. If we repeated the sampling many times, we would expect that 95% of the confidence 
+intervals would include the true population mean. 
+
+(c) It is known that atomic decay times are not normally distributed (they are exponentially distributed). Why does this not matter in this case?
+
+When we draw a random sample of more than 30 measurements, we can assume that the Central Limit Theorem holds. That is to say, the sample mean can be assumed to be normally distributed, regardless of the shape of the population distribution.
+
+
+## Question 3
+
+You want to estimate the percentage of Australians aged 20 and over who own a Samsung phone. You randomly sample 69 people in this age group from across Australia, and find that 18 have Samsung phones.
+
+(a) Construct a 99% confidence interval for this percentage.
+
+```{r}
+# Given information 
+n <- 69  # sample size 
+x <- 18 # number with Samsung phone
+
+#Calculations
+est_p <- x/n   # sample proportion
+sample_var <- est_p*(1-est_p) # sample variance 
+s_error    <- sqrt(sample_var/n)   # standard error
+conf_level <- 0.99
+alpha <- 1-conf_level 
+z_value <- qnorm(alpha/2, mean = 0, sd = 1, lower.tail = FALSE) 
+m_error <- z_value*s_error
+
+# Confidence limits
+LCL <- est_p-m_error # Lower 
+UCL <- est_p+m_error # Upper
+
+# Output 
+cat(str_interp("${conf_level*100}% CI: [${round(LCL,3)}, ${round(UCL,3)}]"))
+```
+
+
+(b) You decide that the 99% confidence interval width you obtained in part (a) needs to be reduced and so you set a sample size that you expect to have a confidence interval width of 10%. How big should that sample size be? 
+
+```{r}
+# Given information 
+new_width <- 0.1
+
+# Calculations
+new_m_error <- new_width/2 #new margin of error
+new_n <- (z_value^2)*sample_var/(new_m_error ^2)# new sample size
+new_n  <- ceiling(new_n) # Round up to integer-value
+
+cat(str_interp("Sample size: ${new_n}"))
+```

@@ -1,0 +1,145 @@
+---
+title: "Week 3 Practice Questions - Solution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Question 1 
+
+If a store receives a batch of phones with an unusually low battery life then they are entitled to compensation from the manufacturer. The average duration of a new eyePhone battery when the phone is on standby is 217 hours with a standard deviation of 39 minutes. A store orders 41 eyePhones and asks their customers to install an app to automatically record their battery time in hours.  
+
+a) What is the standard error for the sampling distribution of the mean battery life (hours) for n = 41?
+
+``` {r constants, echo = TRUE}
+# From the question, we are given the following: 
+mu    <- 271     # Population mean 
+sigma <- 40 / 60 # Population standard deviation, in hours  
+n     <- 44      # Sample size 
+
+# We need to convert either the population mean (given in hours) or the 
+# population standard deviation (given in minutes) to the same units. Because we 
+# are told that the store has asked customers to install an app that records 
+# battery life in hours, we've converted the standard deviation to hours. 
+
+``` 
+
+
+The sampling error is given by $\frac{\sigma}{\sqrt{n}}$, therefore: 
+
+```{r echo = TRUE}
+se <- sigma / sqrt(n)
+round(se, digits = 3) # we converted everything to hours. 
+``` 
+
+We needed to answer in hours, however we can also output in minutes, if we wish: 
+
+``` {r echo = TRUE}
+round(se*60, digits = 3)
+```
+
+
+b) What's the probability that the customers' phones will have a mean battery life of less than 270 hours and 45 minutes?
+
+```{r echo = TRUE}
+low_time <- 270 + (45 / 60) # Converting time to hours 
+pnorm(low_time, mean = mu, sd = se)
+```
+
+Alternatively, we could convert the lower time cut-off to a z-score: 
+
+```{r echo = TRUE}
+z_score <- (270 + (45 / 60) - mu) / se
+pnorm(z_score)
+``` 
+
+c) What's the probability that the customers' phones will have a mean battery life of more than 217 hours and 7 minutes?
+
+```{r echo = TRUE}
+upp_time <- 271 + (17 / 60) # Converting time to hours 
+pnorm(upp_time, mean = mu, sd = se, lower.tail = FALSE)
+```
+
+Again, we could have used a z-score: 
+
+```{r echo = TRUE}
+z_score <- (271 + (17 / 60) - mu) / se
+pnorm(z_score, lower.tail = FALSE)
+``` 
+
+Note that we need to use the `lower.tail = FALSE` argument because we're interested in values greater than the cut-off. 
+
+
+## Question 2
+
+If a store receives a batch of phones with an unusually low battery life then they are entitled to compensation from the manufacturer. The average duration of a new eyePhone battery when the phone is on standby is 271 hours with a standard deviation of 40 minutes. A store orders 44 eyePhones and asks their customers to install an app to automatically record their battery time in hours. 
+
+Let P1 be the probability that a randomly selected customer's phone has a battery life of less than the sample mean. Let P2 be the probability that the sample mean is greater than the population mean. Why is P1 equal to P2 when the population is normally distributed?
+
+
+**ANSWER**  
+Per the Central Limit Theorem, when the population is normally distributed, the sample mean will also be normally distributed about the population mean (with a mean of $\mu$), with a standard deviation equal to the population standard deviation divided by the square root of the sample size. We can write this as: 
+
+$$ \bar{x} \sim N(\mu, \frac{\sigma}{\sqrt{n}}) $$
+
+As the normal distribution is symmetric about the mean, there is equal area under the curve to the left of the mean as there is to the right of the mean. The area under the curve gives us the probability, therefore there is equal probability less than the population mean as there is greater than the population mean. 
+
+
+## Question 3
+You are planning an urban rooftop garden and deciding between Brunswick and Footscray as potential locations. The garden is designed with a rainwater system so that it can operate without ongoing water bill costs. Suppose you know that the average daily rainfall in Brunswick is 241 mm, with a standard deviation of 0.48 mm.
+ 
+a) You want to see whether the rainfall in Footscray is, on average, greater than in Brunswick. You expect that it is greater by 0.26 mm. On how many days should you measure to be sure that Footscray is rainier than Brunswick with a confidence of 95%?
+
+``` {r, echo = TRUE}
+# Constants, given in question: 
+alpha <- 0.05 # For a 95% confidence interval, alpha is 5% 
+sigma <- 0.48 # The standard deviation of daily rainfall 
+E <- 0.26     # The expected effect size (MoE) 
+
+# Calculate Z
+z <- qnorm(alpha/2, lower.tail = FALSE)
+
+# Calculate required sample size 
+n <- ((z * sigma) / E)^2
+ceiling(n) 
+
+``` 
+
+
+b) Suppose that you expect that Footscray has 0.64 mm more rain per day than Brunswick. On how many days should you measure to be sure that Footscray is rainier than Brunswick with a confidence of 95%?
+
+``` {r, echo = TRUE}
+# Constants, given in question: 
+alpha <- 0.05 # For a 95% confidence interval, alpha is 5% 
+sigma <- 0.48 # The standard deviation of daily rainfall 
+E <- 0.64     # The expected effect size (MoE) 
+
+# Calculate Z
+z <- qnorm(alpha/2, lower.tail = FALSE)
+
+# Calculate required sample size 
+n <- ((z * sigma) / E)^2
+ceiling(n) 
+``` 
+
+
+## Question 4
+Describe two ways in which a research might try to ensure that a sample is representative of a population?
+
+**ANSWER**  
+Any two from:  
+- Take a large sample.  
+- Use stratified sampling.  
+- Use cluster sampling.  
+- Choose samples randomly.  
+
+
+## Question 5
+What is a biased sample? 
+
+**ANSWER**  
+A biased sample is one that is not representative of the population. Its statistics will therefore be different to those of the population as a whole.
