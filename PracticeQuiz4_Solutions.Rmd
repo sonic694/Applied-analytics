@@ -1,0 +1,184 @@
+---
+title: "Week 4 Practice Questions - Solution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Libraries
+```{r}
+library(dplyr) # for %>% pipelines
+library(tidyr)
+```
+
+
+## Question 1
+You want to find the average height that men report on a new dating website. You may assume a normal distribution. You sample 10 random men, and find their heights in cm to be:
+
+168.981, 171.999 , 182.714, 163.987, 171.267, 173.306, 181.088, 173.218, 165.356, 168.577. 
+
+Round your answers to 3 decimal places.
+
+a) What is the lower bound of the 85% confidence of your estimate of the mean population height of Australian men? 
+
+``` {r, echo = TRUE}
+# Input data 
+heights <- c(168.981, 171.999 , 182.714, 163.987, 171.267, 
+             173.306, 181.088, 173.218, 165.356, 168.577)
+
+# Sample statistics: 
+x_bar <- mean(heights)   # Sample mean
+s     <- sd(heights)     # Sample standard deviation 
+n     <- length(heights) # Sample size 
+se    <- s / sqrt(n)     # Standard error 
+
+# We do not know the population standard deviation, and our sample is small (< 30). 
+# We must use the t-distribution 
+
+``` 
+
+``` {r, echo = TRUE} 
+ci <- 0.85 
+alpha <- 1 - ci
+
+t_stat <- qt(alpha / 2, df = n - 1, lower.tail = FALSE) 
+
+
+conf_int_lower <- x_bar - (t_stat * se) 
+# OR: 
+conf_int_lower <- x_bar - (t_stat * (s / sqrt(n))) 
+
+# Alternative approach 
+t_test <- t.test(heights, conf.level = ci)
+conf_int_lower <- t_test$conf.int[[1]]
+
+
+# Output the answer
+round(conf_int_lower, digits = 3)
+
+``` 
+
+
+b) What is the upper bound of the 85% confidence interval? 
+
+``` {r, echo = TRUE} 
+ci <- 0.85 
+alpha <- 1 - ci
+
+t_stat <- qt(alpha / 2, df = n - 1, lower.tail = FALSE) 
+
+
+conf_int_upper <- x_bar + (t_stat * se) 
+# OR: 
+conf_int_upper <- x_bar + (t_stat * (s / sqrt(n))) 
+
+# Alternative approach 
+t_test <- t.test(heights, conf.level = ci)
+conf_int_upper <- t_test$conf.int[[2]]
+
+
+# Output the answer
+round(conf_int_upper, digits = 3)
+
+``` 
+
+
+c) What is the probability that the actual mean height of Australian men is greater than the answer to b)? 
+
+**ANSWER**  
+If 85% of the population falls within the confidence interval (between the upper and lower bounds), this must leave 15% in the tails. There are two tails and the distribution is symmetric about the mean, so one half of the probability lies in the upper tail (above the upper bound) and one half resides in the lower tail (below the lower bound). This means that the probability that the actual mean height of Australian men is greater than the upper bound of the confidence interval must be $\frac{1}{2} \times \alpha$ (hence why we see reference to $\alpha/2$) or $\frac{1}{2} \times \left(1 - C.I.\right)$. 
+
+``` {r, echo = TRUE} 
+ci <- 0.85 
+alpha <- 1 - ci 
+
+alpha / 2
+
+``` 
+
+\newpage
+
+## Question 2
+
+Suppose that the government claims that the unemployment rate in regional towns which have tourism as their primary industry is 5.08%. Your company conducts a survey of unemployment in 50 such towns across the country. These are given in the file unemployment.csv. 
+
+a) What is the mean unemployment rate in the sampled towns?
+
+``` {r, echo = TRUE} 
+unemployment <- read.csv("unemployment.csv") 
+
+# Constants (given in Question) 
+mu <- 5.08 # Population mean (Government's claimed unemployment rate)
+n  <- 50   # Sample size (number of towns)
+
+``` 
+
+``` {r, echo = TRUE}
+x_bar <- unemployment %>% pull(unemployment_percentage) %>% mean(na.rm = TRUE) 
+x_bar %>% round(digits = 3)
+
+``` 
+
+b) What is the standard deviation of unemployment in the sampled towns?
+
+``` {r, echo = TRUE}
+sd <- unemployment %>% pull(unemployment_percentage) %>% sd(na.rm = TRUE)
+sd %>% round(digits = 3)
+
+``` 
+
+
+c) What is the sample's test statistic?
+
+``` {r, echo = TRUE}
+t_stat = (x_bar - mu) / (sd / sqrt(n))
+t_stat %>% round(digits = 3) 
+
+# Alternatively: 
+t_test <- t.test(unemployment$unemployment_percentage, mu = mu, alternative = "two.sided")
+t_stat <- t_test$statistic
+t_stat %>% round(digits = 3)
+``` 
+
+
+d) What is the number of degrees of freedom of the sample?
+
+``` {r, echo = TRUE}
+df <- n - 1
+df 
+``` 
+
+We can also see the degrees of freedom in the t.test() output: 
+``` {r, echo = TRUE}
+t.test(unemployment$unemployment_percentage, mu = mu, alternative = "two.sided")
+
+``` 
+
+
+e) Calculate the p-value for the hypothesis test (where Ho is that the government's claim is true)?
+
+``` {r, echo = TRUE}
+t_stat = (x_bar - mu) / (sd / sqrt(n)) 
+
+p_value <- pt(t_stat, df, lower.tail = FALSE) * 2 
+p_value %>% round(digits = 3)
+
+``` 
+
+Again, the p-value is provided as part of the t.test() output: 
+``` {r, echo = TRUE}
+t.test(unemployment$unemployment_percentage, mu = mu, alternative = "two.sided")
+
+``` 
+
+
+## Question 3
+At a significance level of $\alpha = 0.05$, is there enough support to reject the government's claim? YES or NO?
+
+**ANSWER**
+
+The p-value is less $\alpha$, therefore we reject the Null Hypothesis (the Government's claim). 
