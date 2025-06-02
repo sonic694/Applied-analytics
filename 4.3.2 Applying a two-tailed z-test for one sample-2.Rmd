@@ -1,0 +1,91 @@
+---
+title: "4.3.2 Applying a two-tailed z-test for one sample"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Libraries
+```{r}
+library(ggplot2) # for ggplot()
+```
+
+
+## Two tailed test
+
+The aim of this example is to test, at a 1% significance level, the hypothesis that the average speed of a machine is **different** from 1,000 rpm. This requires a two-tailed test.
+
+$$H_{0} : \mu = 1000$$
+
+$$H_{A} : \mu \ne 1000$$
+
+Let's first load the data and visualise the sample mean alongside the assumed population mean.
+
+```{r}
+# load the machine rpm data set
+machine_df <- read.csv("machine_rpm.csv") # make sure to set your work directory accordingly
+head(machine_df)
+```
+
+```{r}
+# check how large sample is
+cat(paste('Length of RPM data = ', length(machine_df$rpm)))
+```
+
+```{r fig.width = 7, fig.height = 4}
+# visualise sample mean
+
+qplot(machine_df$hours, machine_df$rpm, xlab = 'Hours', ylab='rpm') + 
+  geom_hline(aes(yintercept=1000, linetype = 'Population Mean'), color = "red") + 
+  geom_hline(aes(yintercept=mean(machine_df$rpm), linetype = 'Sample Mean'), color = "blue") + 
+  scale_linetype_manual(name = "", values = c(2, 1), 
+                      guide = guide_legend(override.aes = list(color = c("red", "blue"))))
+```
+
+Since the population standard deviation is known and the sample size is large, a z-test is conducted. To perform a z-test we will need to calculate the z-score for the sample mean.
+
+```{r}
+population_sd <- sd(machine_df$rpm)
+population_mu <- 1000
+
+# length of sample
+n <- length(machine_df$rpm)
+
+# calculate sample mean
+x_bar <- mean(machine_df$rpm)
+cat(paste("Sample mean: ", round(x_bar,2)))
+
+# calculate standard error
+SE <- population_sd / sqrt(n)
+cat(paste("Standard error: ", round(SE,2)))
+
+# calculate the z score
+z_score <- (x_bar - population_mu) / SE
+cat(paste("z score: ", round(z_score,2)))
+```
+ 
+\newpage
+Now we have calculated the z-score, we can use the pnorm() function to generate a p-value. We are interested in whether the average rpm is above or below 1,000. 
+ 
+```{r}
+p_value = 2*pnorm(abs(z_score), lower.tail = FALSE)
+cat(paste("p-value: ", p_value))
+```
+
+Based on the p-value and the significance level (0.01), we can conclude our findings.
+
+```{r}
+signif_level <- 0.01
+
+statement = c("the null hypothesis at the 1% significance level.",
+              "\nConclude that the average speed")
+
+true = c("Reject", statement, "differs from 1,000 rpm.")
+false = c("Fail to reject",statement, "is 1,000 rpm.")
+
+if (p_value < signif_level) cat(paste(true)) else cat(paste(false))
+```

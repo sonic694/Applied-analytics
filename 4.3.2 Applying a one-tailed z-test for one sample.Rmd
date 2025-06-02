@@ -1,0 +1,98 @@
+---
+title: "4.3.2 Applying a one tailed z-test for one sample"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## One tailed test
+
+The aim of this example is to test, at a 5% significance level, the hypothesis that people working in profession 7 have an IQ **higher** than the average. 
+
+$$H_{0} : \mu = \mu_{0}$$
+
+$$H_{A} : \mu > \mu_{0}$$
+
+This requires an upper tailed test. IQ test score is calculated based on a normed group with an average of 100 and a standard deviation of 15. As we know the population mean to be 100, we can also write the statistical hypotheses as follows:
+
+$$H_{0} : \mu = 100$$
+
+$$H_{A} : \mu > 100$$
+
+
+## Upper tailed test for testing differences in IQ test score
+
+Let's first load the data and take a look at people working in profession 7.
+
+```{r}
+# load the IQ data set
+iq_df <- read.csv("IQ.csv") # make sure to set your work directory accordingly
+head(iq_df)
+```
+
+
+\newpage
+Let's look at profession 7 in this example
+
+```{r}
+profession7 <- iq_df[iq_df$Profession == 7,]
+head(profession7)
+```
+ 
+For IQ scores we already know the standard deviation by definition, but what about the number of samples?
+
+```{r}
+length(profession7$IQ)
+```
+
+Since the population standard deviation is known and the sample size is large, a z-test is conducted. To perform a z-test we will need to calculate the z-score for the sample mean.
+
+```{r}
+population_sd <- 15
+population_mu <- 100
+
+# length of sample
+n <- length(profession7$IQ)
+
+# calculate sample mean IQ for people working in profession 7
+x_bar <- mean(profession7$IQ)
+cat(paste("Sample mean: ", round(x_bar,2)))
+
+# calculate standard error
+SE <- population_sd / sqrt(n)
+cat(paste("Standard deviation: ", round(SE,2)))
+
+# calculate the z score
+z_score <- (x_bar - population_mu) / SE
+cat(paste("z score: ", round(z_score,2)))
+```
+
+\newpage
+Now we have calculated the z-score, we can use the pnorm() function to generate a p-value.
+
+```{r}
+# Upper tail test has p-value = P(Z>z) 
+
+signif_level <- 0.05 
+
+p_value = pnorm(z_score, lower.tail = FALSE) 
+cat(paste("p-value: ", p_value))
+```
+
+Based on the p-value and the significance level (0.05), we can conclude our findings.
+
+```{r}
+signif_level <- 0.05 
+
+statement = c("the null hypothesis at the 5% significance level.",
+              "\nConclude that those working in profession 7 have")
+
+true = c("Reject", statement, "\na higher average IQ than the overall population.")
+false = c("Fail to reject",statement, "\nthe same IQ as the overall population.")
+
+if (p_value < signif_level) cat(paste(true)) else cat(paste(false))
+```
