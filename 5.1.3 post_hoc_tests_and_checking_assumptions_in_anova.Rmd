@@ -1,0 +1,159 @@
+---
+title: "5.1.3: One-way (between-groups) ANOVA in R with Post Hoc test"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+**Dependent variable:** Continuous (scale/interval/ratio)
+
+**Independent variable:** Categorical (at least 3 unrelated/ independent groups)
+
+**Common Applications:** Used to detect a difference in means of 3 or more independent groups. It can be thought of as an extension of the independent samples t-test and can be referred to as a ‘between-subjects’ ANOVA.
+
+**Data:** The data set contains information on 78 people who undertook one of three diets. There is background information such as age, gender (Female = 0, Male = 1) and height. The aim of the study was to see which diet was best for losing weight so the independent variable (group) is diet. 
+
+**In this example we will build an ANOVA model, perform a post hoc test and check the assumptions underlying the ANOVA model**
+
+## Load Packages 
+``` {r libraries}
+library(dplyr)    # for data wrangling 
+library(magrittr) # for pipes 
+library(readr)    # for reading data 
+library(ggplot2)  # for plotting 
+``` 
+
+
+## Load the data
+
+```{r load_data}
+diet_dat <- read.csv("diet.csv")
+```
+
+## Prepare the data
+
+Tell R that 'Diet' is a factor using `as.factor(variable)`.
+
+```{r data_prep1}
+diet_dat %<>% 
+  mutate(diet = as.factor(diet)) 
+
+```
+
+
+## Investigate the data 
+
+Tell R to use the diet dataset until further notice using attach(dataset) so 'Height' can be used instead of ``diet_dat$height``.
+
+Before carrying any analysis, summarise weight lost by diet using a box-plot or interval plot and some summary statistics. Do the group means and standard deviations look similar or very different? 
+
+Calculate means and standard deviations for weight lost by diet using the 
+
+    tapply(dependent, independent, summary statistic required, na.rm = TRUE)
+
+command e.g. 
+
+    tapply(weight.loss, diet, mean, na.rm = TRUE)
+
+where na.rm = TRUE removes rows where missing values exist.
+
+```{r data_investigate}
+attach(diet_dat) 
+means <- tapply(weight.loss, diet, mean, na.rm = TRUE) 
+sds <- tapply(weight.loss, diet, sd, na.rm = TRUE) 
+
+# combine into one table and give rownames
+results_1 <- cbind(means, sds) 
+rownames(results_1) <- paste("Diet", 1:3, sep=' ') 
+
+# round all the summary statistics to two decimal places
+round(results_1, 2)
+
+detach(diet_dat)
+
+```
+
+``` {r data_investigate_tidyverse} 
+results_2 <- diet_dat %>% 
+  group_by(diet) %>% 
+  summarise(mean = mean(weight.loss, na.rm = TRUE) %>% round(digits = 2), 
+            sd   = sd(weight.loss, na.rm = TRUE) %>% round(digits = 2)) 
+
+results_2
+
+``` 
+
+To produce a boxplot of weight lost by diet:
+
+```{r box_plot, warning = FALSE, message = FALSE}
+p1 <- ggplot(data = diet_dat, aes(x = diet, y = weight.loss)) 
+p1 + geom_boxplot(fill = c("firebrick", "forestgreen", "cornflowerblue")) +
+  labs(title = "Weight Lost by Diet", x = "Diet", y = "Weight Lost")
+
+# Alternative Approach: 
+# boxplot(weight.loss ~ diet, 
+#         data = diet_dat, 
+#         main = 'Weight Lost by Diet', 
+#         xlab = 'Diet', ylab = 'Weight Lost') 
+
+```
+
+Diet 3 seems better than the other diets as the mean weight lost is greater. The standard deviations are similar so weight lost within each group is assumed to be equally spread.
+
+## Apply ANOVA
+
+Using R we can quickly perform an ANOVA test using the function ``aov``.
+
+To carry out a one-way ANOVA use ``aov(dependent~independent)``, give the ANOVA model a name e.g. ``anovaD`` and use ``summary()`` to see the output.
+
+```{r anova}
+anovaD <- aov(weight.loss ~ diet, data = diet_dat)
+summary(anovaD)
+```
+
+Which outputs the F value (5.383) and the associated p-value for having an F value at least as extreme as the F value observed here. In this case the p-value is 0.0066 which is below the 0.01 threshold needed to reject the null hypothesis at a 1% significance level. Thus we conclude that there is a difference in the effectiveness of the different diets.
+
+## Post hoc tests
+
+ANOVA tests the null hypothesis ‘all group means are the same’ so the resulting p-value only concludes whether or not there is a difference between one or more pairs of groups. If the results from ANOVA are significant (as they are in this example), further ‘post hoc’ tests have to be carried out to identify where those differences are. The post hoc tests are mostly t-tests with an adjustment to account for the multiple testing. Tukey’s test is the most commonly used post hoc test and can be used in R via the command ``TukeyHSD(anovaD)``.
+
+```{r post hoc}
+TukeyHSD(anovaD)
+```
+
+### How do we report on this?
+
+Report each of the three pairwise comparisons e.g. there was a significant difference between diet 3 and diet 1 (p = 0.0188). Use the mean difference between each pair e.g. people on diet 3 lost on average 1.85 kg more than those on diet 1, or use individual group means to conclude which diet is best.
+
+## Check the assumptions for ANOVA
+
+Now that we have an ANOVA model we can also check the assumptions for the data set in detail.
+
+Firstly we'll ask for the standardised residuals (difference between each individual and their group mean) and give them a name (res).
+
+```{r check_assumptions}
+res <- anovaD$residuals
+```
+
+Produce a histogram of the residuals.
+
+```{r plot_histogram}
+hist(res, main = "Histogram of standardised residuals", xlab = "Standardised residuals")
+```
+
+Levene's test for equality of variances is in the ``car`` package.
+
+```{r LeveneTest}
+library(car)
+leveneTest(weight.loss ~ diet, data = diet_dat)
+```
+
+The Levene test has the null hypothesis that all groups have equal variances. As the p-value (0.6313) > 0.05 we fail to reject the null hypothesis, so equal variances can be assumed.
+
+## Other Post Hoc tests?
+
+Aside from the Tukey HSD test there is also the pairwise t-test which can be conducted. As the name implies the pairwise t-test systematically applies the t-test to each pair of groups in turn and examines the difference in those means.

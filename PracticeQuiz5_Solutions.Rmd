@@ -1,0 +1,246 @@
+---
+title: "Week 5 Practice Test (Solution)"
+author: ''
+date: ''
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)    # For data manipulation
+library(magrittr) # For pipes 
+library(readr)    # For reading data 
+library(tidyr)    # For tidying data 
+library(knitr)    # For kable()
+```
+
+# Week 5 
+
+## Question 1 
+A local real estate agent wants to investigate whether the sale price of four-bedroom homes in the local area varies from suburb to suburb. She gathers the 50 most recent sales in eight surrounding suburbs, all of which had occurred in a short space of time (no trend, nor seasonal time series effects). The file real_estate_sales.csv contains a column for sale number, and then a column for the dollar value of the sale for each of the eight suburbs.   
+
+State the null and alternative hypothesis for this investigation.
+
+**ANSWER**  
+$H_0:$ There is no association between house sale price and suburb.
+$H_A:$ House sale prices are different for at least one of the suburbs. 
+
+
+## Question 2
+A local real estate agent wants to investigate whether the sale price of four-bedroom homes in the local area varies from suburb to suburb. She gathers the 50 most recent sales in eight surrounding suburbs, all of which had occurred in a short space of time (no trend, nor seasonal time series effects). The file real_estate_sales.csv contains a column for sale number, and then a column for the dollar value of the sale for each of the eight suburbs.   
+
+a) Calculate the grand mean sale price for the region. 
+``` {r} 
+# Read in the data 
+house_sales <- read_csv("real_estate_sales.csv")
+
+# Remove the observation numbers 
+house_sales %<>% 
+  select(-sale_number)
+
+# Calculate the grand mean 
+x_bar_bar <- house_sales %>% colMeans(na.rm = TRUE) %>% mean() 
+
+# Output the grand mean 
+x_bar_bar
+
+``` 
+b) Hence calculate the variance between the means of each of the suburbs (also known as the mean square for treatment - MST). 
+``` {r}
+m <- ncol(house_sales) # This is the number of groups 
+n <- nrow(house_sales) # The number of observations in each group 
+df <- (m * n) - 1    
+df_t <- m - 1
+df_e <- m * (n - 1)
+
+# Group Means 
+shady_brooks_mean <- house_sales %>% pull(`Shady Brooks`) %>% mean(na.rm = TRUE) 
+greenacres_mean <- house_sales %>% pull(Greenacres) %>% mean(na.rm = TRUE) 
+oakridge_mean <- house_sales %>% pull(Oakridge) %>% mean(na.rm = TRUE) 
+aldergrove_mean <- house_sales %>% pull(Aldergrove) %>% mean(na.rm = TRUE) 
+sunnybrae_mean <- house_sales %>% pull(Sunnybrae) %>% mean(na.rm = TRUE) 
+ashwood_hts_mean <- house_sales %>% pull(`Ashwood Heights`) %>% mean(na.rm = TRUE) 
+upton_mean <- house_sales %>% pull(Upton) %>% mean(na.rm = TRUE) 
+truro_junc_mean <- house_sales %>% pull(`Truro Junction`) %>% mean(na.rm = TRUE) 
+
+# Total Sum of Squares 
+SS         <- (house_sales - x_bar_bar)^2 %>% sum() 
+
+# Sum of Squares for Treatment 
+SST <- (n * (shady_brooks_mean - x_bar_bar)^2) + 
+  (n * (greenacres_mean - x_bar_bar)^2) + 
+  (n * (oakridge_mean - x_bar_bar)^2) + 
+  (n * (aldergrove_mean - x_bar_bar)^2) + 
+  (n * (sunnybrae_mean - x_bar_bar)^2) + 
+  (n * (ashwood_hts_mean - x_bar_bar)^2) + 
+  (n * (upton_mean - x_bar_bar)^2) + 
+  (n * (truro_junc_mean - x_bar_bar)^2) 
+
+# Mean Sum of Squares for Treatment 
+MST <- SST / (m - 1) 
+
+MST
+``` 
+
+c) Calculate the average variance within suburbs (also know as the mean square for error - MSE). 
+``` {r} 
+# Sum of Squares for Error
+SSE_shady_brooks <- (house_sales$`Shady Brooks` - shady_brooks_mean)^2 %>% sum()
+SSE_greenacres   <- (house_sales$Greenacres - greenacres_mean)^2 %>% sum()
+SSE_oakridge     <- (house_sales$Oakridge - oakridge_mean)^2 %>% sum()
+SSE_aldergrove   <- (house_sales$Aldergrove - aldergrove_mean)^2 %>% sum()
+SSE_sunnybrae    <- (house_sales$Sunnybrae - sunnybrae_mean)^2 %>% sum()
+SSE_ashwood_hts  <- (house_sales$`Ashwood Heights` - ashwood_hts_mean)^2 %>% sum()
+SSE_upton        <- (house_sales$Upton - upton_mean)^2 %>% sum()
+SSE_truro_junc   <- (house_sales$`Truro Junction` - truro_junc_mean)^2 %>% sum()
+
+SSE <- SSE_shady_brooks + SSE_greenacres + SSE_oakridge + SSE_aldergrove +
+  SSE_sunnybrae + SSE_ashwood_hts + SSE_upton + SSE_truro_junc
+
+# Mean Sum of Squares for Error 
+MSE <- SSE / (m * (n - 1))
+
+MSE
+
+``` 
+
+
+d) Calculate the F-statistic for this data. 
+``` {r}
+# F-Statistic 
+F_stat <- MST / MSE
+
+F_stat
+
+``` 
+
+
+### Alternative approach
+
+Convert the data from wide form to long form: 
+``` {r}
+house_sales_long <- house_sales %>% 
+  pivot_longer(cols = 1:8, 
+               names_to = "suburb", 
+               values_to = "sale_price")
+
+``` 
+
+Now we can calculate degrees of freedom: 
+``` {r}
+m <- house_sales_long %>% count(suburb) %>% nrow() 
+n <- house_sales_long %>% count(suburb) %>% filter(row_number() == 1) %>% pull(n)
+df <- (m * n) - 1    
+df_t <- m - 1
+df_e <- m * (n - 1)
+
+```
+
+Find the grand mean (answer to part a): 
+``` {r} 
+# Group Means 
+house_sales_long %<>% 
+  group_by(suburb) %>% 
+  mutate(suburb_mean = mean(sale_price, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Grand Mean 
+house_sales_long %<>% 
+  mutate(x_bar_bar = mean(house_sales_long$suburb_mean)) 
+
+house_sales_long$x_bar_bar[1] # This number is repeated in every row, only need to output the first 
+
+```
+
+Sums of Squares (parts b and c): 
+``` {r} 
+house_sales_long %<>% 
+  mutate(ss_i = (sale_price - x_bar_bar)^2, 
+         sse_i = (sale_price - suburb_mean)^2, 
+         sst_i = (suburb_mean - x_bar_bar)^2) 
+
+# Mean Sum of Squares for Error and Treatment 
+MSE <- SSE / (m * (n - 1))
+MST <- SST / (m - 1) 
+
+MST
+MSE
+
+``` 
+
+Now we can find the F-Statistic (part d): 
+``` {r} 
+# F-Statistic 
+F_stat <- MST / MSE
+F_stat
+
+``` 
+
+\newpage
+## Question 3
+
+The [airquality](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html) dataset consists of daily air quality measurements in New York from May 1, 1973 to September 30, 1973. The data were obtained from the New York State Department of Conservation (ozone data) and the National Weather Service (meteorological data). There are six variables in the airquality dataset, these are provided below.
+
+* Ozone: Mean ozone in parts per billion from 1300 to 1500 hours at Roosevelt Island.
+
+* Solar.R: Solar radiation in Langleys in the frequency band 4000-7700 Angstroms from 0800 to 1200 hours at Central Park.
+
+* Wind: Average wind speed in miles per hour at 0700 and 1000 hours at LaGuardia Airport.
+
+* Temp: Maximum daily temperature in degrees Fahrenheit at La Guardia Airport.
+
+* Month: Month of measurement (as an integer).
+
+* Day: Day of measurement.
+
+Using this data, perform a simple linear regression using average wind speed to predict maximum daily temperature.
+
+a) Fit a linear regression model to the data, is the model statistically significant?
+
+``` {r} 
+airquality <- datasets::airquality
+
+# build linear model
+model <- lm(Temp ~ Wind, data = airquality)
+model_results <- summary(model)
+model_results
+``` 
+
+**ANSWER**
+
+The linear model was statistically significant, $F$(1,151) = 40.08, $p$ < .001.
+
+
+b) What is the $R^2$ value of the regression model? Round your answer to three decimal places.
+
+``` {r} 
+cat(round(model_results$r.squared,3))
+``` 
+
+c) Interpret and test the statistical significance of the regression intercept and slope.
+
+``` {r} 
+coefficients <- as.data.frame(model_results$coefficients)
+confidence_intervals <- as.data.frame(confint(model))
+
+# rearrange data for better readability
+kable(cbind(cbind(coefficients[1], confidence_intervals), coefficients[2:4]))
+``` 
+
+**ANSWER**
+
+The estimated maximum daily temperature when average wind speed = 0 was 90.13. The intercept of the regression was statistically significant, $\alpha$ = 90.13, $p$ < .001, 95% CI (86.08, 94.19). For every one unit increase in average wind speed, maximum daily temperature was estimated to decrease on average by 1.23. The slope of the regression for average wind speed was statistically significant, $\beta$ = -1.23, $p$ < .001, 95% CI (-1.61, -0.85).
+
+d) Using the estimated linear regression model, predict the maximum daily temperature when the average wind speed is 5 mph.
+
+``` {r} 
+wind_speed <- 5
+intercept <- model_results$coefficients[1]
+slope <- model_results$coefficients[2]
+
+prediction <- intercept + (slope*wind_speed)
+cat(round(prediction,3))
+```

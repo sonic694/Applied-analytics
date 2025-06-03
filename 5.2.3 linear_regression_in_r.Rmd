@@ -1,0 +1,170 @@
+---
+title: "5.2.3: Linear regression"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load Packages 
+``` {r libraries}
+library(ggplot2)  # for plotting 
+``` 
+
+
+Linear regression is an approach to modelling the relationship between a single independent variable (x) and a dependent variable (y). 
+
+In this R example we will go through an example using linear regression.
+
+## Create some data
+
+```{r create_data}
+# x-axis data
+x <- seq(1, 100, 0.5)
+
+# number of points
+n <- length(x)
+
+# model y as a linear function of x
+y <- 10 + 0.5 * x
+
+# add noise to teh model
+y <- y + rnorm(n = n, mean = 0, sd = 5)
+
+# create a dataframe for x and y
+data_df <- data.frame(x = x, y = y)
+
+# quick plot
+qplot(data_df$x, data_df$y)
+
+```
+
+## Test the simple linear regression model
+
+Use the built in function ``lm`` to model the data with a linear function
+
+```{r linear_fit}
+# create a model called "slr" for simple linear regression
+slr = lm(y ~ x, data = data_df) 
+
+# contains coeff [1]=intercept, [2]=slope; find with coef(fit)[1]
+summary(slr)
+```
+
+Coefficients from the fit itself can be extracted from the model produced by ``lm``. These coefficients will be in the order of 1. intercept then 2. slope
+
+```{r coeffs}
+a0 <- coef(slr)[1]
+a1 <- coef(slr)[2]
+```
+
+
+Plot the fit of the line over the data
+
+```{r plot_fit}
+# setup x variable with range of interest
+x_slr <- seq(min(data_df$x), max(data_df$x), 1)
+
+# calculate the fitting function yfit based on the coefficients from the model
+y_slr <- a0 + a1 * x_slr
+
+gg <- ggplot()
+gg <- gg + geom_point(aes(x = data_df$x, y = data_df$y))
+gg <- gg + geom_line(aes(x = x_slr, y = y_slr), colour = 'red')
+gg <- gg + labs(x = 'x', y = 'y')
+gg
+```
+
+## Residuals
+
+Lets calculate the residuals to the straight line fit
+
+```{r res}
+
+# fit to each value of x
+data_df$y_hat <- a0 + a1 * data_df$x
+
+# calculate the residual
+data_df$error <- data_df$y - data_df$y_hat
+
+gg <- ggplot()
+gg <- gg + geom_point(aes(x = data_df$x, y = data_df$error))
+gg <- gg + labs(x = 'x', y = 'residual')
+gg
+
+```
+
+Looks like a horizontal band of random scatter as would be expected for this example
+
+We can also check that they are normally distributed.
+
+```{r qqplot}
+qqnorm(data_df$error)
+qqline(data_df$error, col = 2)
+```
+
+Or check the histogram: 
+``` {r resid_hist}
+gg <- ggplot()
+gg <- gg + geom_histogram(aes(x = data_df$error), bins = 10, colour = "black") 
+gg <- gg + labs(title = "Residuals histogram", x = "Residuals") 
+gg
+``` 
+
+## F-test of the adequacy of the linear model
+
+Now determine the number of degrees of freedom associated with SST and how they are split between the error and regression model. 
+
+Then use the F test to test the null hypothesis that the model doesn't provide an adequate fit to the data.
+
+```{r f_test}
+
+# total number of degrees of freedom
+df_SST <- n - 1
+
+# One independent variable in the model, therefore df associated with SSR is 1 
+df_SSR <- 1
+
+# degrees of freedom for error term
+df_SSE <- df_SST - df_SSR
+
+# calculate the mean of the observed data
+y_mean <- mean(data_df$y)
+
+# calculate the sum of squares terms
+SSR <- sum( (data_df$y_hat - y_mean)^2 )
+SSE <- sum( (data_df$y - data_df$y_hat)^2 )
+
+# calculate the F statistic
+f_score <- (SSR/df_SSR) / (SSE/df_SSE)
+
+# convert to p value
+p_value <- pf(f_score, df_SSR, df_SSE, lower.tail = FALSE)
+print(paste('F =', f_score))
+print(paste('p-value =', p_value))
+
+
+# compare to the in-built function in R
+summary(slr)
+```
+
+This returns a p-value < 2e-16 so the null hypothesis that the linear model is not adequate for this data is rejected.
+
+Thus we can be confident that there is a statistically significant simple linear relationship.
+
+
+## Goodness of fit (R squared)
+
+### Calculate the SSR/SST
+```{r R_squared}
+
+# Read off Multiple R-squared in the summary or calculate as follows
+SST <- SSR + SSE
+R_squared <- SSR/SST
+R_squared
+```
+
+This tells us that 90% of the variation is the y variable is explained by the variation in the x variable, which indicates that the simple linear regression model provides a very good fit to the data.

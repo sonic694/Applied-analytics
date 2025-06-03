@@ -1,0 +1,352 @@
+---
+title: "5.3.2: Using regression to model and predict air pollution"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load Packages 
+``` {r libraries}
+library(ggplot2)  # for data visualisation 
+library(dplyr)    # for data wrangling 
+library(readr)    # for reading data 
+library(magrittr) # for pipes 
+``` 
+
+## Beijing AQI : 2008 to 2014
+
+Beijing is known for being one of the most polluted cities on Earth. Often the government clamps down on [private vehicles](http://en.wikipedia.org/wiki/Road_space_rationing_in_Beijing) or [barbecues](http://www.theguardian.com/world/2013/nov/27/china-barbecues-air-pollution) in an attempt to control the air quality. However the effectiveness of these measures depends on the source of the pollution, in particular of particles smaller than 2.5 microns. These particles are the major cause of pollution related [health issues in humans](http://en.wikipedia.org/wiki/Particulates) and are mostly produced by combustion processes.
+
+The concentration of these small particles is measured by the PM 2.5 index which will be examined here using hourly data from 2008 as measured by the [US Embassy in Beijing](http://www.stateair.net/web/historical/1/1.html). To determine the origin of the pollution and examine how the city is cleaned the [Beijing weather data](https://www.wunderground.com) for the same time period is examined. 
+
+
+## Load AQI data
+
+The raw data for the PM 2.5 is shown with measurements taken hourly at the US Embassy in Beijing since 2008. Notice that there is missing data, particularly in late 2008/early 2009. 
+
+The following chunk will load the pre-cleaned AQI data. 
+
+```{r load_aqi}
+# read AQI data
+col_names <- c('City', 'AQI_Type', 'DateTime', 'Year', 'Month', 'Day', 
+               'Hour', 'PM2.5', 'Unit', 'Duration', 'Status')
+
+aqi_df <- read.csv("AQI_Beijing_2008_2014.csv", header = TRUE, col.names = col_names)
+```
+
+## Load weather data
+
+Unlike the AQI data which is hourly, the weather data is daily.
+
+```{r load_weather}
+
+# units changed from MPH for <= 2010 to KPH from > 2010 !!!
+col_names <- c('Date', 'Temp_Max', 'Temp_Mean', 'Temp_Min', 'DewTemp_Max',
+               'DewTemp_Mean', 'DewTemp_Min', 'Humidity_Max', 'Humidity_Mean',
+               'Humidity_Min', 'Pressure_Max', 'Pressure_Mean', 'Pressure_Min',
+               'Visibility_Max', 'Visibility_Mean', 'Visibility_Min', 'Wind_Max',
+               'Wind_Mean', 'Gust_Max', 'Rain', 'Label', 'Notes', 'Wind_Dir')
+
+weather_df <- read.csv("Weather_Beijing_2009_2014.txt", 
+                       header = FALSE, col.names = col_names)
+
+```
+
+
+### Check data
+
+It's always a good idea to check the data before performing an analysis.
+
+```{r fig.width = 7, fig.height = 4}
+# convert date to R date type
+weather_df$Date <- as.Date(weather_df$Date)
+
+# examine one of the temperature fields...
+qplot(weather_df$Date, weather_df$Temp_Mean)
+
+```
+
+
+### Clean data
+
+Weather data was sourced from a USA based weather services. So before 01/01/2011 they used non-SI units!
+
+```{r fig.width = 7, fig.height = 4}
+
+# find only the data before they started using SI units
+cond <- weather_df$Date < "2011-01-01"
+
+# rescale from 1:iunits
+mitokm = 1.60934
+inchtomm = 25.4
+
+# F to C
+weather_df$Temp_Max[cond]     <- (weather_df$Temp_Max[cond] - 32.0) * (5.0 / 9.0)
+weather_df$Temp_Mean[cond]    <- (weather_df$Temp_Mean[cond] - 32.0) * (5.0 / 9.0)
+weather_df$Temp_Min[cond]     <- (weather_df$Temp_Min[cond] - 32.0) * (5.0 / 9.0)
+weather_df$DewTemp_Max[cond]  <- (weather_df$DewTemp_Max[cond] - 32.0) * (5.0 / 9.0)
+weather_df$DewTemp_Mean[cond] <- (weather_df$DewTemp_Mean[cond] - 32.0) * (5.0 / 9.0)
+weather_df$DewTemp_Min[cond]  <- (weather_df$DewTemp_Min[cond] - 32.0) * (5.0 / 9.0)
+
+# Miles to km
+weather_df$Visibility_Max[cond]  <- weather_df$Visibility_Max[cond]  * mitokm
+weather_df$Visibility_Mean[cond] <- weather_df$Visibility_Mean[cond] * mitokm
+weather_df$Visibility_Min[cond]  <- weather_df$Visibility_Min[cond]  * mitokm
+
+# mph to kph
+weather_df$Wind_Max[cond]  <- weather_df$Wind_Max[cond]  * mitokm
+weather_df$Wind_Mean[cond] <- weather_df$Wind_Mean[cond] * mitokm
+weather_df$Gust_Max[cond]  <- weather_df$Gust_Max[cond]  * mitokm
+
+# inches to mm
+weather_df$Rain[cond] <- weather_df$Rain[cond] * inchtomm
+
+# check the temperature again
+qplot(weather_df$Date, weather_df$Temp_Mean)
+
+```
+
+
+## Combine AQI and Weather data sets
+
+Let's combine the air pollution (AQI) data set with the weather data set
+
+```{r join_datasets}
+toDate <- function(x){
+  return(substr(x, 1, 10))
+}
+
+# get just the date part as a string from the hourly AQI data and time column
+aqi_df$Date <- sapply(aqi_df$DateTime, toDate)
+
+# convert the weather date to a string
+weather_df$Date <- as.character(weather_df$Date)
+
+# join the data sets ensuring that every AQI value (by hour) gets the daily weather data
+data_df <- left_join(aqi_df, weather_df, by = 'Date')
+
+# use the date time field from the hourly AQI data and 
+# convert to a special date form which includes time
+data_df$DateTime <- as.POSIXct(data_df$DateTime)
+```
+
+## Examine the combined data set
+
+It's always best to have a look at the data to get an idea of where to begin.
+
+Let's look at the relationship between the air quality and the daily temperature.
+
+```{r fig.width = 7, fig.height = 4}
+qplot(data_df$Temp_Mean, data_df$PM2.5)
+```
+
+
+```{r fig.width = 7, fig.height = 4}
+qplot(data_df$Humidity_Mean, data_df$PM2.5)
+```
+
+
+```{r fig.width = 7, fig.height = 4}
+qplot(data_df$Wind_Mean, data_df$PM2.5)
+```
+
+
+```{r fig.width = 7, fig.height = 4}
+qplot(data_df$Wind_Dir, data_df$PM2.5)
+```
+
+There is definitely some sort of a relationship between the wind (speed and direction) and the air pollution PM 2.5 level.
+
+
+## Multi-dimensional visualizations
+
+How do we visualize more than 2 dimensions at once?
+
+For scatter plots we can assign different attributes to additional dimensions aside from the usual x and y axes. For example we can use the size, shape and/or colour of the points.
+
+Let's look at plotting the wind speed and direction and using colour as the PM 2.5 level.
+
+```{r fig.width = 7, fig.height = 4}
+gg <- ggplot()
+gg <- gg + geom_point(aes(x = data_df$Wind_Dir, y = data_df$Wind_Mean,
+                          colour = data_df$PM2.5, size = data_df$PM2.5))
+gg <- gg + labs(x = 'Wind direction (degrees from North)',
+                y = 'Wind speed (kph)')
+gg
+```
+
+Still not very clear.  As we are interested in the high pollution days we can increase the size of these points and also use the colour convention for air pollution levels rather than the default shading.
+
+```{r fig.width = 7, fig.height = 4}
+# allocate colour by PM2.5 bands
+# use the case_when function from dplyr to shorten the multiple if,then,else logic 
+data_df$aqi_colour <- case_when(
+  data_df$PM2.5 <=  50 ~ 1,
+  data_df$PM2.5 <= 100 ~ 2,
+  data_df$PM2.5 <= 150 ~ 3,
+  data_df$PM2.5 <= 200 ~ 4,
+  data_df$PM2.5 >  200 ~ 5
+)
+
+# just plot those with PM2.5 values
+plot_df <- data_df[!is.na(data_df$aqi_colour), ]
+
+transp <- 2.5
+
+# setup colour palette
+aqi_colours <- c(rgb(  0, 255,   0, transp, maxColorValue = 255),
+                 rgb(255, 255,   0, transp, maxColorValue = 255),
+                 rgb(255, 165,   0, transp, maxColorValue = 255),
+                 rgb(255,   0,   0, transp, maxColorValue = 255),
+                 rgb(139,   0, 139, transp, maxColorValue = 255),
+                 rgb(139,   0,   0, transp, maxColorValue = 255))
+
+gg <- ggplot(data = plot_df)
+gg <- gg + geom_point(aes(x = Wind_Dir, y = Wind_Mean,
+                          colour = factor(aqi_colour), size = PM2.5))
+gg <- gg + labs(x = 'Wind direction (degrees from North)',
+                y = 'Wind speed (kph)',
+                colour = 'AQI band', size = 'PM2.5')
+gg <- gg + scale_colour_manual(values = aqi_colours)
+gg
+```
+
+Note that there is a lot more you can do with ggplot2 in terms of visualizations. Have a look at using facets to get multiple plots on a single page.
+
+
+## Multiple regression
+
+Now that we have found two parameters that look likely to have an effect on the air pollution, let's perform a multiple regression analysis.
+
+```{r multiple_regression}
+reg_model <- lm(PM2.5 ~ Wind_Dir + Wind_Mean, data = data_df) 
+
+summary(reg_model)
+```
+
+As you can see from the close to zero p-value, there is definitely a relationship between the wind speed and direction and the air pollution in Beijing.
+
+Still I'm sure we can do a little better...
+
+Since the wind direction is in degrees and the regression model will not know that 0 and 360 are actually the same angle, perhaps we should change the fitting function to reflect this.
+
+```{r mr_2}
+reg_model2 <- lm(PM2.5 ~ sin(pi * Wind_Dir / 180) + Wind_Mean, data = data_df) 
+
+summary(reg_model2)
+
+```
+
+The F-statistic has increased so the p-value is technically smaller again. But the main advantage of this model over the original is in terms of interpretability.
+
+Let's look at the dependence on the wind direction by holding the wind speed fixed at a mean value.
+
+```{r plot_mr2}
+
+wind_speed <- mean(data_df$Wind_Mean)
+print(paste('Wind speed:', round(wind_speed, 2), 'kph'))
+
+# use the cleaned and coloured plot dataframe
+plot_df$PM2.5_Model <- reg_model2$coefficients[1] + 
+  reg_model2$coefficients[2] * sin(pi * plot_df$Wind_Dir / 180) + 
+  reg_model2$coefficients[3] * plot_df$Wind_Mean
+
+plot_df$residual <- plot_df$PM2.5 - plot_df$PM2.5_Model
+```
+
+```{r fig.width = 7, fig.height = 4}
+
+wind_speed <- 10
+
+cond <- plot_df$Wind_Mean < 1.2 * wind_speed && plot_df$Wind_Mean > 0.8 * wind_speed
+sub_plot_df <- plot_df[cond,]
+
+# fit using fixed wind speed and sin(wind_dir) from -1 to 1
+x_fit <- seq(-1, 1, 0.01)
+y_fit <- reg_model2$coefficients[1] + reg_model2$coefficients[2] * x_fit + 
+  reg_model2$coefficients[3] * wind_speed
+
+
+gg <- ggplot()
+gg <- gg + geom_point(aes(x = sin(pi * sub_plot_df$Wind_Dir / 180), 
+                          y = sub_plot_df$PM2.5), colour = 'black')
+gg <- gg + labs(x = 'Wind direction (degrees from North)',
+                y = 'Air pollution (PM 2.5)')
+gg <- gg + geom_line(aes(x = x_fit, y = y_fit), colour = 'red')
+gg
+```
+
+## Adding additional variables
+
+Let's look at the residuals and see if there is any additional effect from temperature.
+
+
+```{r fig.width = 7, fig.height = 4}
+qplot(plot_df$Temp_Mean, plot_df$residual)
+```
+
+There is an effect due to temperature which is related to the season. Mostly due to coal being burned for heating buildings in winter, rather than any atmospheric or pollution cleaning.
+
+We could use ANOVA to test the difference, as done with linear regression.
+
+```{r ANOVA}
+# create new model including temperature
+reg_model3 <- lm(PM2.5 ~ sin(pi * Wind_Dir / 180) + Wind_Mean + Temp_Mean,
+                 data = data_df) 
+
+# perform anova test
+anova(reg_model2, reg_model3)
+```
+
+This does indicate that it is worth adding temperature. Other parameters can be tested in this manner as well.
+
+
+## What is the accuracy?
+
+We can use the coefficient of determination (R^2) to gauge the accuracy of a regression model.
+
+```{r model_accuracy}
+summary(reg_model3)
+```
+
+In this case $R^2 = 0.1978$ which is not particularly accurate, but better than a pure guess. Unsurprisingly this particular problem is quite complex as the pollution sources are variable but not included in the data set we have access to.
+
+
+## Prediction based on regression model
+
+Building models is fine, but the main use of them is to predict an outcome based on parameters.
+
+In this case we can use our regression model to predict the air quality for any wind direction, speed and temperature.
+
+```{r predict_values}
+new_data_df <- data.frame(Wind_Mean = c(10, 0),
+                          Wind_Dir  = c(270, 350),
+                          Temp_Mean = c(30, 30))
+
+predict(reg_model3, new_data_df)
+```
+
+## Dangers of straight line fits
+
+The multiple regression model we have constructed is based on three variables, wind speed, direction and temperature. However it uses straight line fits to each of these variables. That can often lead to unexpected behaviour in edge cases, ie. those not necessarily covered in the data set used to train the model.
+
+An example of this is if we give it a significantly different wind speed compared to what was in the data.
+
+
+```{r predict_values2}
+new_data_df <- data.frame(Wind_Mean = c(50),
+                          Wind_Dir  = c(350),
+                          Temp_Mean = c(30))
+
+predict(reg_model3, new_data_df)
+```
+
+In this case we get a negative PM2.5 value, which is not possible. There are many solutions to this including:
+
+* using log10(PM2.5) as the dependent variable (thus negative values of PM2.5 are impossible)
+* adding a max() function over the result
+* changing the type of fitting function, if needed using ``glm()``

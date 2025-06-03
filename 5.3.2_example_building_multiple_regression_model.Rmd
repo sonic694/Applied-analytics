@@ -1,0 +1,184 @@
+---
+title: "5.3.2: Using the data in mtcars to develop a multiple regression model for fuel consumption"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load Packages 
+```{r import_libs}
+library(ggplot2)  # for data visualisation 
+library(dplyr)    # for data wrangling 
+library(magrittr) # for pipes 
+```
+
+## View the data
+
+```{r view_data}
+df <- mtcars
+df
+```
+
+Suppose we want to develop a model that explains mpg in terms of some or all of the other variables. Potentially there could be up to 10 Independent variables (IVs) in the model. Some of you may have an idea as to which variables are likely to be better at explaining fuel consumption. But without that knowledge, you could start by examining scatterplots between each of these variables with mpg.
+
+## Scatterplots of IVs with the dependent variable
+
+```{r fig.width = 7, fig.height = 4}
+qplot(df$cyl,df$mpg)
+qplot(df$disp,df$mpg)
+qplot(df$hp,df$mpg)
+qplot(df$drat,df$mpg)
+qplot(df$wt,df$mpg)
+qplot(df$qsec,df$mpg)
+qplot(df$vs,df$mpg)
+qplot(df$am,df$mpg)
+qplot(df$gear,df$mpg)
+qplot(df$carb,df$mpg)
+```
+
+The scatterplots reveal that, apart from gear and possibly qsec, all other variables appear to have a linear relationship of sorts with mpg. The issue with putting all these variables into the model is that multicollinearity is going to be an issue. This is to do with the extent to which the IVs are correlated with one another. This suggests that we should look at the correlation matrix.
+
+If you haven't already installed corrplot then you'll need to do that first
+
+```{r correlation}
+# install.packages("corrplot")
+library(corrplot)
+
+M = cor(mtcars)
+corrplot(M, method = "number")
+```
+
+This shows, for example, that the three IVs (wt, cyl, disp) are strongly correlated with one another.
+
+Let's start by building a model with one of these IVs, starting with the one that is most correlated with mpg.
+
+```{r regression}
+reg_model <- lm(mpg ~ wt, data = df)
+summary(reg_model)
+```
+
+Let's see what would happen if all three IVs are included in the model.
+
+```{r regression2}
+reg_model2 <- lm(mpg ~ wt + cyl + disp, data = df)
+summary(reg_model2)
+```
+
+We can see that displacement, with a p-value of 0.5, isn't adding any value to the model. This is a consequence of multicollinearity, but the estimates are still valid. Let's therefore rerun the model without disp.
+
+```{r regression3}
+reg_model3 <- lm(mpg ~ wt + cyl, data = df)
+summary(reg_model3)
+```
+The p-values given in the column headed Pr(>|t|)show that all three parameters (intercept and regression coefficients for weight and the number of cylinders) are significantly different from zero. This model is more accurate that the first model with weight as the only IV. Multiple R-squared (which is simply R-squared) had risen from 83%. But this is in part due to the fact that we have included another IV in the model. In general, every time you add in another IV, the R-squared will most likely increase. We should therefore switch to using the adjusted R-squared, which has an inbuilt penalty for including additional variables in the model. The adjusted R-squared has increased quite substantially, from 74% to 82%. In other words, 82% of the variation in fuel efficiency can be accounted for by the variation in weight and the number of cylinders. 
+
+Let's now examine the scatterplot for the residuals against each IV
+
+```{r fig.width = 7, fig.height = 4}
+df$model3 <- reg_model3$coefficients[1] + 
+            reg_model3$coefficients[2]*df$wt +
+            reg_model3$coefficients[3]*df$cyl
+df$residual3 <- df$mpg - df$model3
+
+qplot(df$wt,df$residual3)
+qplot(df$cyl,df$residual3)
+```
+
+There is no pattern evident in this plot, which is what we want to see. The temptation is to widen the net and include additional IVs in our model. but we don't want multicollinearity to be a problem, so we need to be smart about our choice of variables. Without any knowledge about which IVs should be more important drivers (pun not intended) of fuel efficiency, you should rely on the correlation matrix. Rather than doing this incrementally (which is best practice), let's see what happens if we add all of the following in our model: hp (horsepower),qsec (time to cover quarter of a mile), vs (binary valued where 0 = V-shaped engine and 1 = straight engine), am (binary valued where 0 = automatic transmission and 1 = manual), gear (number of forward gears) and carb (number of carburetors).
+
+```{r regression4}
+reg_model4 <- lm(mpg ~ wt + cyl + hp + qsec + vs + am + gear + carb, data = df)
+summary(reg_model4)
+```
+
+Well that was spectacularly unsuccessful! Weight is the only IV with a coefficient that's significantly different from zero. The coefficient of determination (adjusted R-squared) hasn't changed, so it is no better. In fact, the model overall is worse, as it includes a swag of IVs that contribute nothing meaningful to the model because their p-values are above 5%. Rather than discarding them all, let's keep am since that has the lowest p-value, and run the model again.
+
+
+```{r regression5}
+reg_model5 <- lm(mpg ~ wt + cyl + am, data = df)
+summary(reg_model5)
+```
+
+
+The story here is unequivocal - omit am from the model. So it is now back to the drawing board. Let's try hp instead.
+
+
+```{r regression6}
+reg_model6 <- lm(mpg ~ wt + cyl + hp, data = df)
+summary(reg_model6)
+```
+
+This seems to have been a backward step as we are back to having only one meaningful IV in the model. This could be a due to the strong correlation between the two IVs cyl and hp. So what would happen if the number of cylinders is dropped from the model?
+
+```{r regression7}
+reg_model7 <- lm(mpg ~ wt + hp, data = df)
+summary(reg_model7)
+```
+The performance of this model in terms of its coefficient of determination (i.e. adjusted R-squared) is much the same as for the model with wt and cyl. Based on the data, either model is can be used. Suppose that we settle on using the model with wt and hp as IVs.
+We should now examine the residuals.
+
+
+```{r fig.width = 7, fig.height = 4}
+df$model7 <- reg_model7$coefficients[1] + 
+             reg_model7$coefficients[2]*df$wt +
+             reg_model7$coefficients[3]*df$hp
+
+df$residual7 <- df$mpg - df$model7
+
+qplot(df$wt,df$residual7)
+qplot(df$hp, df$residual7)
+```
+
+
+Neither of these plots suggest any correlation between the errors and IVs. Again, that's good news. Now let's check for normality in the residuals.
+
+
+```{r fig.width = 7, fig.height = 4}
+df$residual7 <- df$mpg - df$model7
+hist(df$residual7)
+```
+
+This looks reasonable, especially as we only have 32 observations in our dataset. The question which now comes to mind is whether we have any outliers in the residuals. Let's therefore examine a boxplot of the residuals.
+
+```{r fig.width = 7, fig.height = 4}
+boxplot(df$residual7)
+```
+
+
+We can see that there are outliers, which we need to identify.
+
+
+```{r}
+boxplot.stats(df$residual7)
+```
+
+So there are three outliers: Toyota Corolla,  Fiat 128 and Chrysler Imperial. Let's now suppose that we have good reason to exclude these cars from out dataset. What impact would that have on our model?
+
+Let's take the row names and place them into a new column. Then we can delete the selected rows according to the value in this new column.
+
+
+```{r}
+df$car <- rownames(df)
+rownames(df) <- NULL # This removes the row names and turns them into row numbers
+df2 <- df %>%
+  filter(!(df$car %in% c("Toyota Corolla", "Fiat 128", "Chrysler Imperial")))
+```
+
+
+```{r regression8}
+reg_model8 <- lm(mpg ~ wt + hp, data = df2)
+summary(reg_model8)
+```
+
+
+Now the model's coefficient of determination has increased from 81% to 89%. There might be other improvements to be made to the model, but we'll leave it there. So what does this model tell us about the effect of each IV on fuel efficiency?
+
+Weight is measured in 1,000 pounds. So we can say that a 100 pound decrease in weight is expected to produce a 0.400 increase in fuel efficiency as measured in mpg, assuming that horsepower is unchanged.
+
+And if the gross horsepower is reduced by 10, then fuel efficiency is expected to increase by 0.265, assuming that the car's weight remains unchanged.
+
+As a final comment, because our dataset was limited in size, we didn't randomly split it into training and test samples. If you have enough data, you should use the training sample, which could be 80% of the total data, to build the regression model. Once you have decided on the final model, you can see how it performs on the test data. This would enable you to produce an unbiased measure of how well the model fits the data. 

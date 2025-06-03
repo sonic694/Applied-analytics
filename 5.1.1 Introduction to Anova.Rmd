@@ -1,0 +1,180 @@
+---
+title: "5.1.1: Introduction to ANOVA"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+## Libraries
+```{r}
+library(dplyr)    # For data wrangling 
+library(magrittr) # For pipes 
+library(readr)    # For reading data 
+library(tidyr)    # For manipulating data columns 
+```
+
+
+## Approach 1: Wide Form
+
+```{r}
+# Read the Data 
+breakfast <- read_csv("breakfast_aptitude.csv")
+
+# We only want `breakfast` to include the observations and corresponding groups. 
+breakfast %<>% 
+  rename(group1 = `No_breakfast`, 
+       group2 = `Light_breakfast`, 
+       group3 = `Full_breakfast`)
+  
+m <- ncol(breakfast) # This is the number of groups
+n <- nrow(breakfast) # The number of observations in each group 
+df_t <- (m * n) - 1    
+df_b <- m - 1
+df_w <- m * (n - 1)
+
+# Group Means 
+group1_mean <- breakfast %>% pull(group1) %>% mean(na.rm = TRUE) 
+group2_mean <- breakfast %>% pull(group2) %>% mean(na.rm = TRUE) 
+group3_mean <- breakfast %>% pull(group3) %>% mean(na.rm = TRUE) 
+
+# Overall Mean 
+x_bar_bar <- breakfast %>% colMeans(na.rm = TRUE) %>% mean() 
+# OR: 
+x_bar_bar <- mean(c(group1_mean, group2_mean, group3_mean))
+
+# Total Sum of Squares 
+SST         <- (breakfast - x_bar_bar)^2 %>% sum() 
+
+# Sum of Squares Between 
+SSB <- (n * (group1_mean - x_bar_bar)^2) + 
+       (n * (group2_mean - x_bar_bar)^2) + 
+       (n * (group3_mean - x_bar_bar)^2) 
+
+# Sum of Squares Within
+SSW_group1 <- (breakfast$group1 - group1_mean)^2 %>% sum()
+SSW_group2 <- (breakfast$group2 - group2_mean)^2 %>% sum()
+SSW_group3 <- (breakfast$group3 - group3_mean)^2 %>% sum()
+SSW        <- SSW_group1 + SSW_group2 + SSW_group3
+
+# Mean Squares Within and Between 
+MSB <- SSB / (m - 1) 
+MSW <- SSW / (m * (n - 1))
+
+# F-ratio 
+F_rat <- MSB / MSW
+
+# p-value 
+p_val <- pf(F_rat, df1 = df_b, df2 = df_w, lower.tail = FALSE)
+
+
+# Table: 
+tab01 <- data.frame(Source = c("Between", "Within", "Total"), 
+                    SS = c("SSB", "SSW", "SST"), 
+                    df = c("m-1", "m(n-1)", "(m*n) - 1"), 
+                    MS = c("SSB / (m - 1)", "SSW / (m*(n-1))", ""), 
+                    F_ratio = c("MSB / MSW", "", ""),
+                    significance = c("p-value","",""))
+
+tab02 <- data.frame(Source = c("Between", "Within", "Total"), 
+                    SS = c(SSB, SSW, SST),
+                    df = c(df_b, df_w, df_t), 
+                    MS = c(MSB, MSW, NA), 
+                    F_ratio = c(F_rat, NA, NA),
+                    significance = c(p_val, NA, NA))
+```
+
+## Approach 2: Long Form
+
+If we wish to convert the breakfast dataset into long form, we can use the following code. This might be useful if we wish to use anova functions, such as demonstrated in the next module. We can also do the same calculations on long form data, if your data is already in long form. 
+
+```{r}
+breakfast <- read_csv("breakfast_aptitude.csv") %>% 
+  rename(group1 = `No_breakfast`, 
+         group2 = `Light_breakfast`, 
+         group3 = `Full_breakfast`)
+
+breakfast_long <- breakfast %>% 
+  pivot_longer(cols = 1:3,            # You only need to pivot the group columns 
+               names_to = "group", 
+               values_to = "aptitude")
+
+m <- breakfast_long %>% count(group) %>% nrow() 
+n <- breakfast_long %>% count(group) %>% filter(row_number() == 1) %>% pull(n)
+df_t <- (m * n) - 1    
+df_b <- m - 1
+df_w <- m * (n - 1)
+
+# Group Means 
+breakfast_long %<>% 
+  group_by(group) %>% 
+  mutate(group_mean = mean(aptitude, na.rm = TRUE)) %>% 
+  ungroup()
+# This is where this approach is beneficial compared to the first approach: 
+# because you don't need to calculate each group mean individually, this is 
+# faster and less error-prone if there are many groups. 
+
+# Overall Mean 
+breakfast_long %<>% 
+  mutate(x_bar_bar = mean(breakfast_long$group_mean))
+# OR because all groups are the same size 
+# x_bar_bar <- breakfast_long %>% pull(group_mean) %>% mean()
+
+# Total Sum of Squares 
+breakfast_long %<>% 
+  mutate(sst_i = (aptitude - x_bar_bar)^2) 
+
+SST <- breakfast_long %>% 
+  pull(sst_i) %>% 
+  sum()
+
+# Sum of Squares Between 
+breakfast_long %<>% 
+  mutate(ssb_i = (group_mean - x_bar_bar)^2)
+
+SSB <- breakfast_long %>% 
+  pull(ssb_i) %>% 
+  sum()
+
+# Sum of Squares Within
+breakfast_long %<>% 
+  mutate(ssw_i = (aptitude - group_mean)^2)
+
+SSW <- breakfast_long %>% 
+  pull(ssw_i) %>% 
+  sum()
+
+# Note: We could have combined the three Sum of Squares mutations as a single step: 
+breakfast_long %<>% 
+  mutate(sst_i = (aptitude - x_bar_bar)^2, 
+         ssw_i = (aptitude - group_mean)^2, 
+         ssb_i = (group_mean - x_bar_bar)^2)
+
+# Mean Squares Between and Within 
+MSB <- SSB / (m - 1) 
+MSW <- SSW / (m * (n - 1))
+
+# F-ratio 
+F_rat <- MSB / MSW
+
+# p-value 
+p_val <- pf(F_rat, df1 = df_b, df2 = df_w, lower.tail = FALSE)
+
+tab03 <- data.frame(Source = c("Between", "Within", "Total"), 
+                    SS = c(SSB, SSW, SST), 
+                    df = c(df_b, df_w, df_t), 
+                    MS = c(MSB, MSW, NA), 
+                    F_ratio = c(F_rat, NA, NA),
+                    significance = c(p_val, NA, NA)) 
+```
+
+## Do the two approaches give the same results? 
+
+```{r}
+tab02
+tab03
+```
