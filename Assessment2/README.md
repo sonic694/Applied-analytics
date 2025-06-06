@@ -4,7 +4,7 @@
 This repository contains the R Markdown report for Assessment 2 of MATH2406 Applied Analytics. The project demonstrates practical applications of statistical concepts including probability distributions, sampling distributions, confidence intervals, hypothesis testing, and ANOVA through five scenario-based problems.
 
 ## Author
-Steven Byrne (Student ID: 3112668)
+Steven Byrne
 
 ## Project Structure
 The assessment consists of five problems that test understanding of key statistical concepts:
