@@ -1,0 +1,450 @@
+---
+title: "MATH2406 Applied Analytics"
+author: "Steven Byrne (3112668)"
+subtitle: 'Assessment 2: Applied Data Project'
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+# Chunk labels used to identify code blocks. Useful for error tracking
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+# Globally set default behavior of code chunks
+# Warnings and messages are hidden. Code is still shown. Produces a clean output
+```
+
+## Setup
+
+```{r libraries}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(magrittr)
+library(MASS)
+
+set.seed(3112668) # For reproducibility
+```
+
+---
+
+## Problem 1: Flu vaccination experiment
+
+### Part a) Flu infection number simulation
+
+```{r flu1}
+group_a <- 100 # Vaccinated
+group_b <- 100 # Not vaccinated
+
+p_flu_vaccine <- 0.10 # 10% change of getting flu
+p_flu_none <- 0.30 # 30% change of getting flu
+
+flu_a <- rbinom(1, group_a, p_flu_vaccine)
+flu_b <- rbinom(1, group_b, p_flu_none)
+
+# rbinom generates random numbers from a binomial distribution (number, size, probability)
+# Simulating a survey of 100 people getting the flu when vaccinated and 100 people getting the flu when they are not vaccinated
+
+no_flu_a <- group_a - flu_a
+no_flu_b <- group_b - flu_b
+# Calculating how many people didn't get the flu from each group
+
+output <- data.frame(
+  Outcome = c("Infected", "Not infected", "Participants"),
+  Vaccinated_group = c(flu_a, no_flu_a, group_a),
+  Unvaccinated_group = c(flu_b, no_flu_b, group_b)
+) # Mimic a clinical statistics table
+
+print(output)
+```
+From this simulation we can see a difference in that 8% of people vaccinated people got the flu whereas 29% of unvaccinated people got the flu.
+
+### Part b) Simulated data analysis
+
+#### Calculate the probability someone unvaccinated will not get infected
+
+```{r flu2}
+prob_unvaccinated_no_infection <- no_flu_b / group_b # Empirical probability unvaccinated people will not get the flu
+cat("Probability of someone unvaccinated not getting the flu:", # The cat() prints the message in clear text
+    round(prob_unvaccinated_no_infection, 3)) # The 3 rounds the probability to 3 decimal places
+```
+
+#### 95% confidence interval for unvaccinated people not getting the flu
+
+```{r flu3}
+p_hat <- prob_unvaccinated_no_infection # The sample proportion. This estimates the probability of not getting the flu in this group
+n <- group_b # The number of people in the unvaccinated group
+se <- sqrt(p_hat * (1 - p_hat) / n) # se stands for Standard Error. It measures the uncertainty in the sample proportion
+z_value <- qnorm(0.975) # The Z-score represents the number of standard errors from the normal distribution. In this case its 1.96
+print(z_value)
+
+ci_lower <- p_hat - z_value * se # This gives us the lower end of the confidence interval in the population proportion given the standard errors
+ci_upper <- p_hat + z_value * se # This gives us the upper end of the confidence interval in the population proportion
+
+cat("We have 95% confidence that the proportion of unvaccinated people who didn't get the flu lies between ", round(ci_lower, 3), " and ", round(ci_upper, 3), ". In other words, this is the probability of not getting the flu when you didn't get the vaccine", "\n") # This is a statement explaining that I am 95% confident the population value is between these two ends
+```
+
+#### Population percentage estimated to get infected given 40% vaccine uptake rate
+
+```{r flu4}
+percentage_vaccinated <- 0.40
+percentage_unvaccinated <- 0.60
+# Both percentages add up to 1
+# I need to calculate the percentage of infections given the uptake rate whilst taking into account the chance of getting the virus after receiving the vaccine and not receiving the vaccine at all
+expected_infections <- (percentage_vaccinated * p_flu_vaccine) + (percentage_unvaccinated * p_flu_none)
+
+cat("The expected percentage of flu infections accross a population where 40% of participants received the vaccine is", round(expected_infections * 100, 1), "%") # Convert the result into a percentage whilst rounding to one decimal place
+```
+
+#### Probability of being infected by the flu virus at least 3 times in 10 years whilst receiving the vaccine each year
+
+```{r flu5}
+# The question is asking me what the chance that a vaccinated person gets the flu as stated with 10% chance of infection
+# The same experiment will be repeated 10 times
+# There are only two outcomes 
+# Being infected or receiving the vaccine the previous year doesn't alter the chances the following year
+# The three conditions mentioned above indicates that this is a binomial distribution
+# Since I need to give a probability in terms of a percentage I can work from the other direction (X less or equals too 2)
+probability_three_or_more_flu_events <- 1 - pbinom(2, 10, p_flu_vaccine) # Subtract from 1 to give the value I'm looking for
+# The pbinom function gives the cumulative probability of 0.9298 which is taking into account someone getting the flu virus no times at all, 1 event or 2 events
+probability_two_or_less_flu_events <- pbinom(2, 10, p_flu_vaccine)
+probability_three_or_more_flu_events <- 1 - probability_two_or_less_flu_events
+cat("There is a", round(probability_two_or_less_flu_events * 100, 1), 
+    "% chance of a vaccinated person getting the flu 2 times or less in 10 years.")
+cat(" Therefore, the probability of getting the flu at least 3 times in 10 years:", 
+    round(probability_three_or_more_flu_events * 100, 1), "% \n")
+```
+
+---
+
+## Problem 2: Exponential Distribution and Central Limit Theorem
+
+### Part a) Generate 1000 observations from exponential distribution with mean 10
+
+```{r expo1}
+rate_parameter <- 1/10 # The rate parameter is the inverse of the mean
+sample_number <- 1000 # Number of random sample values
+
+exponential_distribution <- rexp(sample_number, rate = rate_parameter) # Generates one thousand values from this type of distribution
+# Below is calculating population statistics
+population_mean <- 1/rate_parameter # The population mean is the inverse of the rate parameter
+population_sd <- 1/rate_parameter # The population standard deviation is also the inverse of the rate parameter
+
+sample_mean <- mean(exponential_distribution) # The sample mean is the average of the generated sample values
+sample_sd <- sd(exponential_distribution) # The sample standard deviation is the standard deviation of the generated sample values
+
+cat("Population mean:", population_mean, "\n") # Prints the population mean
+cat("Sample mean:", round(sample_mean, 3), "\n") # Prints the sample mean rounded to 3 decimal places
+cat("Population standard deviation:", population_sd, "\n") # Prints the population standard deviation
+cat("Sample standard deviation:", round(sample_sd, 3), "\n") # Prints the sample standard deviation rounded to 3 decimal places
+```
+If I increase the sample_number from 1000 to 1000000 the sample mean generated in very close to the population. Decreasing the sample mean from 1000 to 10 increases the distance from the population mean.
+
+#### ii. Compare histogram with theoretical density
+
+```{r expo2, fig.width=7, fig.height=4}
+ggplot(data.frame(x = exponential_distribution), aes(x = x)) + # Create a data frame with the sample values
+  geom_histogram(aes(y = ..density..), bins = 50, fill = "orange", alpha = 0.7) + # Histogram with density on y-axis
+  stat_function(fun = dexp, args = list(rate = rate_parameter), color = "black", size = 1) + # Overlay theoretical density function
+  labs(title = "Histogram of Exponential Sample vs Theoretical Density", # Title of the plot
+       x = "Value", y = "Density") + # Labels for x and y axes
+  xlim(0, 50) # Limit x-axis to 0-50 for better visibility
+```
+The black line of the histogram represents the theoretical exponential distribution where it drops off quickly resulting in a lot more small density values compared to larger values. The generated density bars produced by the exponential probability function (rexp()) has generated values that follow the theoretical trend.
+
+### Part b) Generate 1000 sample means of size 2
+
+```{r expo3, fig.width=7, fig.height=4}
+number_of_samples <- 1000 # Number of sample means to generate
+sample_size_small <- 2 # Size of each sample
+
+sample_means_size_2 <- replicate(number_of_samples, mean(rexp(sample_size_small, rate = rate_parameter)))  # Generate 1000 sample means of size 2
+
+ggplot(data.frame(means = sample_means_size_2), aes(x = means)) +  # Create a data frame with the sample means
+  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +  # Histogram of sample means
+  labs(title = "Distribution of Sample Means (n=2)",  # Title of the plot
+       x = "Sample Mean", y = "Frequency")  # Labels for x and y axes
+
+cat("Mean of sample means:", round(mean(sample_means_size_2), 3), "\n")  # Calculate and print the mean of sample means
+cat("Standard deviation of sample means:", round(sd(sample_means_size_2), 3), "\n")  # Calculate and print the standard deviation of sample means
+cat("Theoretical standard error:", round(population_sd/sqrt(sample_size_small), 3), "\n")  # Theoretical standard error of the sample means
+```
+Even though the original data (population) follows an exponential type of probability distribution. The mean values of each of the 1000 sampling events has now resulted in a distribution that is started to show normality. This is the great attribute the Central Limit Theorem provides statisticians. In that, we can not apply statistical tests that require data to follow a normal distribution to then allow us to suggest information predictions regarding the population.
+
+### Part c) Generate 1000 sample means of size 30
+
+```{r expo4, fig.width=7, fig.height=4}
+sample_size_larger <- 30  # Size of each sample
+
+sample_means_size_30 <- replicate(number_of_samples, mean(rexp(sample_size_larger, rate = rate_parameter)))  # Generate 1000 sample means of size 30
+
+ggplot(data.frame(means = sample_means_size_30), aes(x = means)) +  # Create a data frame with the sample means
+  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +  # Histogram of sample means
+  labs(title = "Distribution of Sample Means (n=30)",  # Title of the plot
+       x = "Sample Mean", y = "Frequency")  # Labels for x and y axes
+
+cat("Mean of sample means:", round(mean(sample_means_size_30), 3), "\n") # Calculate and print the mean of sample means
+cat("Standard deviation of sample means:", round(sd(sample_means_size_30), 3), "\n")  # Calculate and print the standard deviation of sample means
+cat("Theoretical standard error:", round(population_sd/sqrt(sample_size_larger), 3), "\n")  # Theoretical standard error of the sample means
+```
+Sampling 28 more samples per sampling event has created a sample means distribution chart with normality. Increasing the sample size has resulted in a normal distribution with fewer small values.
+
+---
+
+## Problem 3: Paired t-test Scenario for Brand New Milk Carton Package Design
+
+### Part a) Conduct one-tailed test
+
+```{r milk}
+randomly_selected_participants <- 20
+current_average_attractiveness_rating <- 7.5
+new_average_attractiveness_rating <- 8.2
+standard_deviation_difference_between_averages <- 1.9
+statistical_significance_level_percentage <- 0.05
+
+difference_in_averages <- new_average_attractiveness_rating - current_average_attractiveness_rating
+print(difference_in_averages)
+standard_error_difference <- standard_deviation_difference_between_averages / sqrt(randomly_selected_participants)
+print(standard_error_difference)
+t_statistic <- difference_in_averages / standard_error_difference
+print(t_statistic)
+degrees_of_freedom <- randomly_selected_participants - 1
+print(degrees_of_freedom)
+
+cat("\n") # Adding a line space between print outs
+
+p_value <- pt(t_statistic, degrees_of_freedom, lower.tail = FALSE)
+# pt refers to the probability t-distribution that R uses to calculate the probability for this type of set of values
+cat("Sample mean difference:", difference_in_averages, "\n")
+cat("Standard error of difference:", round(standard_error_difference, 4), "\n")
+cat("t-statistic:", round(t_statistic, 4), "\n")
+cat("Degrees of freedom:", degrees_of_freedom, "\n")
+cat("p-value (one-tailed):", round(p_value, 4), "\n")
+
+if(p_value < statistical_significance_level_percentage) {
+  cat("Decision: Reject H0 - The new design is significantly more attractive\n")
+} else {
+  cat("Decision: Fail to reject H0 - No significant difference in attractiveness\n")
+}
+```
+Summary of results:
+
+- There is a average difference of 0.7 rating points on the attractiveness scale in favour of the new design. 
+
+- If I ran this study 100 times (for example) with a group of 20 different people the sample mean would vary by approximately 0.4 rating points.
+
+- The difference in observations for the two sampling events of the same group of 20 people is 1.65 standard errors away from zero.
+
+- The number of pieces of data we had ended up being 19 as one data point was used to estimate the sample mean
+
+- There was calculated to be approximately a 6% chance that if there was a real difference in the new design actually scoring better we would see it. 
+
+---
+
+## Problem 4: Bivariate Normal Distribution Tests
+
+### Part a) 10 pairs of observations
+
+```{r}
+# Setting up the population parameters (we wouldn't normally know this)
+true_mean_group1 <- 50 # Average for group 1
+true_mean_group2 <- 55 # Average for group 2
+true_standard_deviation_both_groups <- 10  # Standard deviation for both groups
+correlation_between_groups <- 0.8 # Correlation between the two groups
+number_of_participant_pairs <- 10 # Number of pairs of participants
+
+# Creating the mathematical setup for generating correlated data
+population_means <- c(true_mean_group1, true_mean_group2) # Means for the two groups
+variance_covariance_matrix <- matrix(c(true_standard_deviation_both_groups^2,  # Variance for group 1
+                                     correlation_between_groups * true_standard_deviation_both_groups * true_standard_deviation_both_groups, # Covariance between the groups
+                                     correlation_between_groups * true_standard_deviation_both_groups * true_standard_deviation_both_groups, # Covariance between the groups
+                                     true_standard_deviation_both_groups^2), nrow = 2) # Variance for group 2
+
+# Generate 10 pairs of observations (pretending we don't know the true values)
+generated_data_10_pairs <- MASS::mvrnorm(number_of_participant_pairs, population_means, variance_covariance_matrix) # Generates multivariate normal data
+measurements_from_group1 <- generated_data_10_pairs[, 1] # Extracting measurements for group 1
+measurements_from_group2 <- generated_data_10_pairs[, 2] # Extracting measurements for group 2
+
+# Examining our sample data (as if we're researchers who don't know the truth)
+cat("Sample Group 1 - Average:", round(mean(measurements_from_group1), 2), # Calculating the average and standard deviation for group 1
+    "Variability:", round(sd(measurements_from_group1), 2), "\n") # Calculating the average and standard deviation for group 1
+cat("Sample Group 2 - Average:", round(mean(measurements_from_group2), 2),  # Calculating the average and standard deviation for group 2
+    "Variability:", round(sd(measurements_from_group2), 2), "\n") # Calculating the average and standard deviation for group 2
+cat("How strongly related the groups are:", round(cor(measurements_from_group1, measurements_from_group2), 3), "\n")  # Correlation between the two groups
+```
+
+#### i. Deciding on appropriate hypothesis test
+
+```{r}
+cat("Decision on test choice:\n") # This is a comment to explain the decision making process
+cat("- We have paired observations (same participants measured twice)\n") # This is a comment to explain the decision making process
+cat("- Sample size is small (n=10), so we need t-test not z-test\n") # This is a comment to explain the decision making process
+cat("- Data should be normally distributed for t-test to be valid\n") # This is a comment to explain the decision making process
+cat("- We'll use a paired t-test because the groups are related\n\n") # This is a comment to explain the decision making process
+```
+
+#### ii. Conduct the test and reflect on results
+
+```{r}
+# Conducting the test
+statistical_significance_threshold <- 0.05 # Setting the significance level for the test
+
+paired_t_test_results_10 <- t.test(measurements_from_group1, measurements_from_group2,  # Performing the paired t-test
+                                  paired = TRUE, alternative = "two.sided") # Specifying it's a paired test and two-tailed
+print(paired_t_test_results_10) # Printing the results of the t-test
+
+cat("\nConclusion: With probability of error =", round(paired_t_test_results_10$p.value, 4),  # Printing the p-value from the test
+    "\nwe", ifelse(paired_t_test_results_10$p.value < statistical_significance_threshold, "reject", "fail to reject"),    # Conditional statement to determine if we reject or fail to reject the null hypothesis
+    "the hypothesis that both groups have the same average at α = 0.05\n") # Printing the conclusion based on the p-value
+
+cat("\nReflection on test's ability to reach correct conclusion:\n") # This is a comment to explain the reflection process
+if(paired_t_test_results_10$p.value < statistical_significance_threshold) {      # If the p-value is less than the significance threshold
+  cat("The test correctly detected the difference that actually exists (50 vs 55).\n") # Printing a message if the test detected the difference
+  cat("With only 10 pairs, we got lucky to detect this 5-unit difference.\n") # Printing a message about the sample size
+} else { # If the p-value is not less than the significance threshold
+  cat("The test failed to detect the difference that actually exists (50 vs 55).\n") # Printing a message if the test did not detect the difference
+  cat("This is likely because 10 pairs isn't enough data to reliably detect a 5-unit difference.\n") # Printing a message about the sample size
+}
+```
+
+### Part b) 30 pairs of observations
+
+```{r}
+# Testing with more data (30 pairs)
+number_of_participant_pairs_larger_study <- 30 # Number of pairs of participants in the larger study
+
+# Generate 30 pairs of observations
+generated_data_30_pairs <- MASS::mvrnorm(number_of_participant_pairs_larger_study, population_means, variance_covariance_matrix) # Generates multivariate normal data for 30 pairs
+measurements_from_group1_larger_study <- generated_data_30_pairs[, 1] # Extracting measurements for group 1 in the larger study
+measurements_from_group2_larger_study <- generated_data_30_pairs[, 2] # Extracting measurements for group 2 in the larger study
+
+cat("Larger Study - Sample Group 1 - Average:", round(mean(measurements_from_group1_larger_study), 2),  # Calculating the average and standard deviation for group 1 in the larger study
+    "Variability:", round(sd(measurements_from_group1_larger_study), 2), "\n") # Calculating the average and standard deviation for group 1 in the larger study
+cat("Larger Study - Sample Group 2 - Average:", round(mean(measurements_from_group2_larger_study), 2),  # Calculating the average and standard deviation for group 2 in the larger study
+    "Variability:", round(sd(measurements_from_group2_larger_study), 2), "\n") # Calculating the average and standard deviation for group 2 in the larger study
+cat("How strongly related the groups are:", round(cor(measurements_from_group1_larger_study, measurements_from_group2_larger_study), 3), "\n") # Correlation between the two groups in the larger study
+```
+
+#### i. Deciding on appropriate hypothesis test
+
+```{r}
+cat("Decision on test choice for larger study:\n") # This is a comment to explain the decision making process
+cat("- Still have paired observations (same participants measured twice)\n") # This is a comment to explain the decision making process
+cat("- Sample size is larger (n=30), but we still use t-test\n") # This is a comment to explain the decision making process
+cat("- Larger sample gives us more power to detect real differences\n") # This is a comment to explain the decision making process
+cat("- We'll use a paired t-test because the groups are still related\n\n") # This is a comment to explain the decision making process
+```
+
+#### ii. Conduct the test and reflect on results
+
+```{r}
+# Conducting the test with larger sample
+paired_t_test_results_30 <- t.test(measurements_from_group1_larger_study, measurements_from_group2_larger_study,  # Performing the paired t-test for the larger study
+                                  paired = TRUE, alternative = "two.sided") # Specifying it's a paired test and two-tailed
+print(paired_t_test_results_30) # Printing the results of the t-test for the larger study
+
+cat("\nConclusion: With probability of error =", round(paired_t_test_results_30$p.value, 4),  # Printing the p-value from the test for the larger study
+    "\nwe", ifelse(paired_t_test_results_30$p.value < statistical_significance_threshold, "reject", "fail to reject"),  # Conditional statement to determine if we reject or fail to reject the null hypothesis for the larger study
+    "the hypothesis that both groups have the same average at α = 0.05\n") # Printing the conclusion based on the p-value for the larger study
+
+cat("\nReflection on test's ability to reach correct conclusion:\n") # This is a comment to explain the reflection process for the larger study
+if(paired_t_test_results_30$p.value < statistical_significance_threshold) { # If the p-value is less than the significance threshold for the larger study
+  cat("The test correctly detected the difference that actually exists (50 vs 55).\n") # Printing a message if the test detected the difference for the larger study
+  cat("With 30 pairs, we have much better power to detect this 5-unit difference.\n") # Printing a message about the sample size for the larger study
+} else { # If the p-value is not less than the significance threshold for the larger study
+  cat("The test failed to detect the difference that actually exists (50 vs 55).\n") # Printing a message if the test did not detect the difference for the larger study
+  cat("This would be surprising with 30 pairs - we might have gotten unlucky with our random sample.\n") # Printing a message about the sample size for the larger study
+}
+```
+
+### Part c) Comparing the two approaches
+
+```{r}
+cat("Comparison between 10-pair study and 30-pair study:\n\n") # This is a comment to explain the comparison process
+
+cat("Study Results Summary:\n") # This is a comment to explain the summary of results
+cat("- 10-pair study p-value:", round(paired_t_test_results_10$p.value, 4), "\n")    # Printing the p-value from the 10-pair study
+cat("- 30-pair study p-value:", round(paired_t_test_results_30$p.value, 4), "\n\n") # Printing the p-value from the 30-pair study
+
+cat("Key Conclusions:\n") # This is a comment to explain the key conclusions
+cat("1. Sample size dramatically affects our ability to detect real differences\n") # This is a comment to explain the effect of sample size
+cat("2. The true difference (5 units) never changes, but our power to detect it does\n") # This is a comment to explain the true difference
+cat("3. Larger samples give more reliable and consistent results\n") # This is a comment to explain the effect of larger samples
+cat("4. Small samples can lead to 'false negatives' - missing real effects\n") # This is a comment to explain the effect of small samples
+cat("5. This demonstrates why proper sample size planning is crucial in research\n") # This is a comment to explain the importance of sample size planning
+```
+
+---
+
+## Problem 5: ANOVA for Promotional Scenarios
+
+### Part a) Standard deviation = 30
+
+```{r problem5_a}
+n_stores <- 6
+sd_sales <- 30
+mean_scenario1 <- 50
+mean_scenario2 <- 55
+mean_scenario3 <- 60
+
+scenario1_sales <- rnorm(n_stores, mean_scenario1, sd_sales)
+scenario2_sales <- rnorm(n_stores, mean_scenario2, sd_sales)
+scenario3_sales <- rnorm(n_stores, mean_scenario3, sd_sales)
+
+sales_data <- data.frame(
+  sales = c(scenario1_sales, scenario2_sales, scenario3_sales),
+  scenario = factor(rep(c("Scenario 1", "Scenario 2", "Scenario 3"), each = n_stores))
+)
+
+print(sales_data)
+```
+
+#### ii. Conduct ANOVA test
+
+```{r problem5_a_ii}
+anova_result_a <- aov(sales ~ scenario, data = sales_data)
+anova_summary_a <- summary(anova_result_a)
+print(anova_summary_a)
+
+p_value_a <- anova_summary_a[[1]]["scenario", "Pr(>F)"]
+
+cat("Conclusion: With p-value =", round(p_value_a, 4), 
+    "we", ifelse(p_value_a < 0.05, "reject", "fail to reject"), 
+    "H0 at α = 0.05\n")
+
+if(p_value_a < 0.05) {
+  tukey_a <- TukeyHSD(anova_result_a)
+  print(tukey_a)
+}
+```
+
+### Part b) Standard deviation = 25
+
+```{r problem5_b}
+sd_sales_b <- 25
+
+scenario1_sales_b <- rnorm(n_stores, mean_scenario1, sd_sales_b)
+scenario2_sales_b <- rnorm(n_stores, mean_scenario2, sd_sales_b)
+scenario3_sales_b <- rnorm(n_stores, mean_scenario3, sd_sales_b)
+
+sales_data_b <- data.frame(
+  sales = c(scenario1_sales_b, scenario2_sales_b, scenario3_sales_b),
+  scenario = factor(rep(c("Scenario 1", "Scenario 2", "Scenario 3"), each = n_stores))
+)
+
+anova_result_b <- aov(sales ~ scenario, data = sales_data_b)
+anova_summary_b <- summary(anova_result_b)
+print(anova_summary_b)
+
+p_value_b <- anova_summary_b[[1]]["scenario", "Pr(>F)"]
+
+cat("Conclusion: With p-value =", round(p_value_b, 4), 
+    "we", ifelse(p_value_b < 0.05, "reject", "fail to reject"), 
+    "H0 at α = 0.05\n")
+
+if(p_value_b < 0.05) {
+  tukey_b <- TukeyHSD(anova_result_b)
+  print(tukey_b)
+}
+```
