@@ -1,0 +1,207 @@
+---
+title: "Task 6.2.2: Setting up an AB test with R"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2)  # for data visualisation 
+library(dplyr)    # for data wrangling 
+library(magrittr) # for pipes 
+library(pwr)      # for determining sample size
+library(knitr)    # for kable()
+```
+
+The scenario is that you own a chain of gyms in Melbourne that cater to a wide clientele and you wish to increase the percentage of customers paying to renew their memberships for another six months.
+
+Gym attendance is notorious for customers being frequent visitors in the first month (or week) and then rapidly dropping off and not renewing their memberships. Across all gyms the mean percentage of customers who renew their memberships for an additional six months is around 10% per cent, although this varies between gyms.
+
+To encourage more customers to renew for six months, you have decided to offer a free one-month membership extension to as many customers as possible.  
+
+How can you setup a control group to check that this intervention did, in fact, increase the chance of customers going on to pay for a six-month renewal? 
+
+Given that you think this campaign will increase renewals by about 5 per cent, you want to offer the one-month extension to as many customers as possible. How can you achieve this while still having a statistically significant control group? 
+
+The data we will use for this case consists of records for 10,000 customers with their gender, age, number of days they have been a member, days since their last visit and results of a survey they initially filled in on membership regarding their reasons for joining the gym.
+
+In this task we will focus on how to divide each independent variable such that resulting groups (A and B) best match the business requirements. How the A/B groups are implemented and how to do the analysis is covered in the next task.
+
+## Load the data
+
+```{r load_data}
+customers_df <- read.csv("gym_customers.csv")
+```
+
+## Examine the data
+
+First, best to look at the data itself. Ensure it is clean, look at the columns etc.
+
+```{r examine_1}
+# we inspect the first 20 rows
+knitr::kable(head(customers_df, 20))
+```
+
+Second, let's look at some relationships. Intuitively more frequent gym users should have their days since last visit $<$ days since they became a member.
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$days_member, customers_df$days_last_visit)
+
+```
+
+It's quite a continuous distribution, with some customers who disappeared after their first day!
+
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$days_last_visit / customers_df$days_member)
+
+```
+
+There is a trend in older people not being as frequent users as younger people.
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$age, customers_df$days_last_visit / customers_df$days_member)
+
+```
+\newpage
+How does gender factor into this?
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$age, customers_df$days_last_visit / customers_df$days_member, 
+      colour = customers_df$gender)
+
+```
+
+Nothing obvious here...
+
+What is happening with gender?
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$gender)
+
+```
+\newpage
+What about age?
+
+```{r fig.width = 7, fig.height = 3.5}
+qplot(customers_df$age)
+
+```
+
+## Splitting into groups
+
+Age would be a logical divider in terms of demographic groups of interest in later analysis.
+Different marketing strategies would be needed based on age and gender. So let's investigate how to divide these up.
+
+```{r fig.width = 7, fig.height = 3.5}
+gg <- ggplot(customers_df, aes(x = age, fill = gender))
+gg <- gg + geom_histogram(alpha = 0.5, position = "identity", binwidth = 1)
+gg
+
+```
+
+
+\newpage
+## Can the data be clustered?
+
+Sometimes there are clear patterns in the data if it is visualized in particular ways. Let's examine the effect of behaviour via the survey score versus age.
+
+
+```{r fig.width = 7, fig.height = 3.5}
+
+int_breaks_rounded <- function(x, n = 10) pretty(x, n)[round(pretty(x, n), 1) %% 1 == 0]
+
+gg <- ggplot()
+gg <- gg + geom_point(aes(x = customers_df$age,
+                          y = customers_df$survey_score))
+gg <- gg + scale_y_continuous(breaks = int_breaks_rounded )
+gg <- gg + labs(x = 'Age (years)', y = 'Survey score')
+gg
+
+```
+
+There are two fairly clear clusters in the behaviour metric (survey score) versus age plot. Using a threshold of 4.5, we can clearly divide our customers into two groups, above 4.5 and below 4.5, and as survey score and age are closely related, this division can also split our customers into two distinct age groups.
+
+For our A/B test, we select survey score as an independent variable to divide our customers. Although no major trends were evident for gender in our exploration, management have asked to check for any significant differences in renewal rates between males and females. Given these two independent variables, we will need to generate four sets of control and treatment groups: males who scored above 4.5, females who scored above 4.5, males who scored below 4.5 and females who scored below 4.5.
+
+Now that we have decided how to group our data, let's calculate the minimum sample size according to the expected effect size.
+
+## Minimum sample size
+
+In the case study we are told that the expected effect size is 5%. Since we will be testing the effect of the campaign across four groups, we will use a more conservative significance level to account for the multiple testing.
+
+Taking a 1.25% significance level and setting the power of the test to 80%, we can find the  minimum sample size using the pwr.p.test function. The test should be one-sided because the offer is not expected to make customers less likely to renew their membership.
+
+```{r sample_size}
+
+alpha <- 0.0125
+output <- pwr.p.test(h = ES.h(p1 = 0.15, p2 = 0.10),n = ,sig.level = alpha,
+                   power = 0.80,alternative = "greater")
+min_n <- ceiling(output[[2]])
+print(paste('Min sample size', min_n))
+
+```
+
+So the smallest group that we can expect to be able to get statistically significant results from in the analysis of this A/B test has at least 412 members.
+
+
+## Randomly allocate the groups
+Below we show how to randomly sample from the 10,000 customers given a customer's gender and survey score. We need to create a control and treatment group for each of the four aforementioned groups. We will randomly select 412 customers for each respective control and treatment group. Therefore, the resultant dataset will consist of a total of 3296 customers.
+
+```{r setGroups}
+
+set.seed(123) # set seed for reproducibility
+
+# create a boolean column, above, which we can use when filtering
+customers_df$above <- ifelse(customers_df$survey_score > 4.5, TRUE, FALSE)
+
+# generate variables to store conditions
+above_cond <- (customers_df$above)
+male_cond <- (customers_df$gender == 'M')
+
+# we first take a sample of 824 male customers with a survey score above 4.5 
+sampled_above_males_df <- sample_n(customers_df[above_cond & male_cond,], min_n*2)
+
+# we split sampled_above_males_df into two
+# 412 will be part of the control group, 412 will be part of the treatment group
+sampled_above_males_df$id <- 1:nrow(sampled_above_males_df)
+controlgroup <- sampled_above_males_df %>% sample_frac(.5)
+
+# we create an indicator column to signify whether a customer is part of
+# the control (A) or treatment group (B)
+sampled_above_males_df$outcome <- ifelse(sampled_above_males_df$id %in% 
+                                           controlgroup$id, 'A','B')
+
+# we repeat the above steps for male customers with a survey score below 4.5 
+sampled_below_males_df <- sample_n(customers_df[!above_cond & male_cond,], min_n*2)
+sampled_below_males_df$id <- 1:nrow(sampled_below_males_df)
+controlgroup <- sampled_below_males_df %>% sample_frac(.5)
+sampled_below_males_df$outcome <- ifelse(sampled_below_males_df$id %in% 
+                                           controlgroup$id, 'A','B')
+
+# we repeat the above steps for female customers
+sampled_above_females_df <- sample_n(customers_df[above_cond & !male_cond,], min_n*2)
+sampled_above_females_df$id <- 1:nrow(sampled_above_females_df)
+controlgroup <- sampled_above_females_df %>% sample_frac(.5)
+sampled_above_females_df$outcome <- ifelse(sampled_above_females_df$id %in% 
+                                             controlgroup$id, 'A','B')
+
+sampled_below_females_df <- sample_n(customers_df[!above_cond & !male_cond,], min_n*2)
+sampled_below_females_df$id <- 1:nrow(sampled_below_females_df)
+controlgroup <- sampled_below_females_df %>% sample_frac(.5)
+sampled_below_females_df$outcome <- ifelse(sampled_below_females_df$id %in% 
+                                             controlgroup$id, 'A','B')
+
+# lastly, we merge all sampled data
+sampled_df <- rbind(sampled_above_males_df, sampled_below_males_df,
+                    sampled_above_females_df, sampled_below_females_df)
+sampled_df <- subset(sampled_df, select = -c(id))
+```
+
+The 1 month free extension will then be offered to customers marked with group = 'B'.

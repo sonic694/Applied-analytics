@@ -1,0 +1,236 @@
+---
+title: "Task 6.2.3: Completing an AB test with R"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Load relevant packages
+
+```{r}
+library(ggplot2)  # for data visualisation 
+library(magrittr) # for pipes 
+library(dplyr)    # for data wrangling 
+library(pwr)      # for determining sample size
+library(purrr)    # for applying test to multiple subgroups
+library(knitr)    # for kable()
+```
+
+In this task we will analyse the results from an A/B test using similar groups to those setup in the previous task. Our goal is to determine if giving out one-month memberships was successful and if it should be used again in the future.
+
+## Load the data
+
+From the original 10,000 customers, we sampled 3,296 customers to be part of our A/B test. The outcome of the offer is provided in gym_customers_ab.csv along with some new columns:
+
+* above: the cluster group above 4.5 based on survey score
+* group: control group (A) or target group (B) allocation
+* outcome: 1 = customer went onto renew their membership for 6 months
+
+```{r load_data}
+customers_df <- read.csv("gym_customers_ab.csv")
+
+# we inspect the first 10 rows
+knitr::kable(head(customers_df, 10))
+```
+
+## Examine the data
+
+Look at the data cluster again, but this time colour the points using the outcome.
+
+```{r fig.width = 7, fig.height = 4}
+int_breaks_rounded <- function(x, n = 10) pretty(x, n)[round(pretty(x, n), 1) %% 1 == 0]
+
+gg <- ggplot()
+gg <- gg + geom_point(position = position_jitter(width = 0.45,
+                                                 height = 0.45), 
+                      aes(x = customers_df$age,
+                          y = customers_df$survey_score,
+                          colour = factor(customers_df$outcome)))
+gg <- gg + scale_y_continuous(breaks = int_breaks_rounded )
+gg <- gg + labs(x = 'Age (years)', y = 'Survey score',
+                colour = 'Outcome')
+gg
+
+```
+
+## Check group balances
+
+As we didn't setup these groups ourselves it is always best to double check that they represent the total population.
+
+```{r fig.width = 7, fig.height = 3.5}
+# count the numbers in each demographic category based on the A/B group
+check_a_df <- customers_df %>% 
+  filter(group == 'A') %>% 
+  select(gender, above) %>% 
+  group_by(gender, above) %>% 
+  mutate(n_a = n()) %>% 
+  distinct()
+
+check_b_df <- customers_df %>% 
+  filter(group == 'B') %>% 
+  select(gender, above) %>% 
+  group_by(gender, above) %>% 
+  mutate(n_b = n()) %>% 
+  distinct()
+
+# total numbers in each group
+n_total_a <- sum(customers_df$group == 'A')
+n_total_b <- sum(customers_df$group == 'B')
+
+# proportions in each demographic
+check_a_df$p_a <- check_a_df$n_a / n_total_a
+check_b_df$p_b <- check_b_df$n_b / n_total_b
+
+# join on demo categories
+check_df <- inner_join(check_a_df, check_b_df)
+
+# calculate the difference in proportions
+check_df$diff <- check_df$p_a - check_df$p_b
+
+# if there is no bias aside from sampling noise then the difference 
+# should be small and normally distributed
+qqnorm(y = check_df$diff)
+
+```
+
+Looks like the four groups are drawn from the same population. 
+
+## Examine the effect size
+
+Let's see if the experiment had any effect at all on the percentage of customers who renewed for 6 months. If the intervention of giving 1 month free membership extensions worked then we should see an increase in the percentage of group B with outcome = 1 compared to group A.
+
+```{r summary_stats}
+cond_A <- customers_df$group == 'A'
+cond_B <- customers_df$group == 'B'
+
+print('Outcome breakdown:')
+cat(paste('A:', sum(customers_df$outcome[cond_A]) / sum(cond_A)))
+cat(paste('B:', sum(customers_df$outcome[cond_B]) / sum(cond_B)))
+```
+
+Excellent! Now let's do a deep dive into the demographics to see where this impact was most felt.
+
+
+## Statistical significance tests
+
+Let's break the demographics and statistics by each group and check for their significances.
+
+We'll look at each group outcomes side-by-side for each demographic defined by the categories, above and gender.
+
+```{r hypothesis_test}
+
+# prepare data for group A
+g_a <- customers_df %>% 
+  filter(group == 'A') %>% 
+  ungroup() %>% 
+  select(gender, above, outcome) %>% 
+  group_by(gender, above) %>%
+  mutate(n_a = n(), n_a_o = sum(outcome)) %>% 
+  select(gender, above, n_a, n_a_o) %>%
+  distinct()
+
+g_a$p_a <- g_a$n_a_o / g_a$n_a
+
+g_b <- customers_df %>% 
+  filter(group == 'B') %>% 
+  ungroup() %>% 
+  select(gender, above, outcome) %>% 
+  group_by(gender, above) %>%
+  mutate(n_b = n(), n_b_o = sum(outcome)) %>% 
+  select(gender, above, n_b, n_b_o) %>%
+  distinct()
+
+g_b$p_b <- g_b$n_b_o / g_b$n_b
+
+# effect comparison: join on all common column names
+effect_comp_df <- inner_join(g_a, g_b)
+
+effect_comp_df$effect <- effect_comp_df$p_b - effect_comp_df$p_a
+
+effect_comp_df$p_value <- pmap(effect_comp_df,
+                               ~{prop.test(x = c(..4, ..7), 
+                                 n = c(..3, ..6), 
+                                 alternative = "less", 
+                                 correct = "FALSE")$p.value})
+
+# round values to fit table output
+effect_comp_df$p_a <- round(effect_comp_df$p_a, 3)
+effect_comp_df$p_b <- round(effect_comp_df$p_b, 3)
+effect_comp_df$effect <- round(effect_comp_df$effect, 3)
+effect_comp_df$p_value <- round(as.numeric(effect_comp_df$p_value), 4)
+
+
+# Alternatively we can work out p-values by first using the formula for pooled 
+# proportion and then substituting it into the formula for the z-value
+#
+# effect_comp_df$pooled_p <- (effect_comp_df$n_a_o + effect_comp_df$n_b_o) /
+#                            (effect_comp_df$n_a + effect_comp_df$n_b)
+#
+# effect_comp_df$z_value <- effect_comp_df$effect /
+#                           sqrt(effect_comp_df$pooled_p*(1-effect_comp_df$pooled_p)*
+#                                (1/effect_comp_df$n_a +1/effect_comp_df$n_b))
+# 
+# effect_comp_df$p_value <- pnorm(effect_comp_df$z_value, mean = 0, sd = 1, 
+#                                 lower.tail = FALSE) 
+
+knitr::kable(effect_comp_df)
+```
+
+To determine whether the campaign was successful, we need to check for two things...
+
+1. Are the control and treatment groups larger than or equal to the minimum sample size?
+2. Was the effect statistically significant (i.e., $p$ < $\alpha$)?
+
+Before we can answer these, we first need to determine the significance level and minimum sample size.
+
+## Minimum sample size
+
+In the case study we are told that the expected effect size is 5%. Since we will be testing the effect of the campaign across four groups, we will use a more conservative significance level to account for the multiple testing.
+
+Taking a 1.25% significance level and setting the power of the test to 80%, we can find the  minimum sample size using the pwr.p.test function. The test should be one-sided because the offer is not expected to make customers less likely to renew their membership.
+
+``` {r sample_size}
+
+alpha <- 0.0125
+output <- pwr.p.test(h = ES.h(p1 = 0.15, p2 = 0.10),n = ,sig.level = alpha,
+                   power = 0.80,alternative = "greater")
+min_n <- ceiling(output[[2]])
+print(paste('Min sample size', min_n))
+
+```
+
+```{r hypothesis_test2}
+effect_comp_df$Significant <- effect_comp_df$p_value < alpha
+effect_comp_df$ge_MSS <- effect_comp_df$n_a >= min_n & effect_comp_df$n_b >= min_n
+
+knitr::kable(effect_comp_df)
+```
+
+For customers who had a survey score less than 4.5, the promotion produces a statistically significant 
+improvement in the retention rate. In addition, the size of the control and treatment groups are sufficient ($\ge$ 412).
+
+## Display results
+
+Viewing the results as a table of values is not always the most clear.
+
+Let's have a look at the effect sizes using a tile plot.
+
+```{r }
+plot_df <- effect_comp_df
+
+plot_df$demo_g <- ifelse(plot_df$gender == 'M', 'Male', 'Female')
+
+gg <- ggplot(plot_df, aes(x = demo_g, y = above, fill = effect))
+gg <- gg + geom_tile(color = "transparent", size = 0.1)
+gg <- gg + labs(x = "Gender", y = "Survey score above the line", fill = "Effect")
+gg <- gg + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gg
+```
+
+From this AB test we would conclude that offering one-month free membership did indeed increase the chance of customers going on to pay for another 6 months membership. Especially for those whose survey scores were < 4.5, which was typically associated with an older demographic more interested in health benefits than muscle toning. The experimental results were consistent across males and females.
+
+This is an actionable insight that would help the business both in the short term regarding increasing membership and in the long term regarding better targeting of marketing campaigns. 
